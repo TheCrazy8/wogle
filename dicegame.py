@@ -2,18 +2,30 @@ import random
 
 print("Wogle")
 
+health = 10
+bosshealth = 10
+
 def dice_roll():
+    return random.randint(1, 6)
+
+def enemy_roll():
     return random.randint(1, 6)
 
 def play_game():
     if input("Roll: (just hit enter)") == "":
         num = dice_roll()
+        nem = enemy_roll()
+        global health, bosshealth
         print(f"You rolled a {num}.")
-        if num == 1:
+        bosshealth -= num
+        print(f"Boss health: {bosshealth}")
+        print(f"Enemy rolled a {nem}")
+        health -= enemy_roll()
+        if health < 1:
             print("You lose!")
             if input("Play again?: (just hit enter)") == "":
                 play_game()
-        elif num == 6:
+        if bosshealth < 1:
             print("You win!")
             if input("Play again?: (just hit enter)") == "":
                 play_game()
