@@ -20,7 +20,7 @@ def play_game():
         bosshealth -= num
         print(f"Boss health: {bosshealth}")
         print(f"Enemy rolled a {nem}")
-        health -= enemy_roll()
+        health -= nem
         if health < 1:
             print("You lose!")
             if input("Play again?: (just hit enter)") == "":
