@@ -1,6 +1,6 @@
 import random
 
-print("Wogle")
+print("Wogle Doice Boss Battle")
 
 health = 10
 bosshealth = 10
