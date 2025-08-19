@@ -1,5 +1,6 @@
 import random
 
+print("Wogle")
 def dice_roll():
     return random.randint(1, 6)
 
