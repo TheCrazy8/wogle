@@ -68,14 +68,13 @@ def shop():
                     print("Health is already at maximum.")
             else:
                 print("Not enough money to buy a health potion.")
-        elif priceisrice == "buy more coins":
-            if input("Do you want to buy 10 coins for 5 real money? (yes/no): ").strip().lower() == "yes":
-                microtransactions()
-        elif priceisrice == "buy lootbox":
-            if input("Do you want to buy a lootbox for 10 coins? (yes/no): ").strip().lower() == "yes":
-
-            else:
-                print("No coins purchased.")
+    elif priceisrice == "buy more coins":
+        if input("Do you want to buy 10 coins for 5 real money? (yes/no): ").strip().lower() == "yes":
+            microtransactions()
+    elif priceisrice == "buy lootbox":
+        if input("Do you want to buy a lootbox for 10 coins? (yes/no): ").strip().lower() == "yes":
+    else:
+        print("No coins purchased.")
 
 def dice_roll():
     return random.randint(1, 6)
