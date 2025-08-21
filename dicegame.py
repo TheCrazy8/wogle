@@ -36,6 +36,8 @@ def shop():
         elif priceisrice == "buy more coins":
             if input("Do you want to buy 10 coins for 5 real money? (yes/no): ").strip().lower() == "yes":
                 microtransactions()
+            else:
+                print("No coins purchased.")
 
 def dice_roll():
     return random.randint(1, 6)
