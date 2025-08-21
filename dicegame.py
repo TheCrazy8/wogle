@@ -1,131 +1,152 @@
 import random
-import paypalrestsdk
+import tkinter as tk
+from tkinter import ttk, messagebox
 
-paypalrestsdk.configure({
-    "mode": "sandbox",  # or "live"
-    "client_id": "AYWa_1MhFT5TUYuKLrq4siBl2HjpQo1xEL6gUTNUpgyKmnmbTsx8T-d4yri2TXc-wVc6277W4dyDDgs2",
-    "client_secret": "ELsmG9EhGuYeJTHeZKuWUhXC5Mnq4yY772AeoraN85hkuwVEVixUgqh6tudlFYXjaD0qmJbRoF_g9hGe"
-})
+import sv_ttk
 
-money = 0
-health = 10
-bosshealth = 100
-
-# Example: Creating a payment
-def create_payment():
-    global money
-    payment = paypalrestsdk.Payment({
-        "intent": "sale",
-        "payer": {
-            "payment_method": "paypal"
-        },
-        "transactions": [{
-            "amount": {
-                "total": "0.50",
-                "currency": "USD"
-            },
-            "description": "Buying ten coins!"
-        }],
-        "redirect_urls": {
-            "return_url": "http://localhost:3000/process_payment",
-            "cancel_url": "http://localhost:3000/cancel_payment"
-        }
+try:
+    import paypalrestsdk
+    paypalrestsdk.configure({
+        "mode": "sandbox",  # or "live"
+        "client_id": "AYWa_1MhFT5TUYuKLrq4siBl2HjpQo1xEL6gUTNUpgyKmnmbTsx8T-d4yri2TXc-wVc6277W4dyDDgs2",
+        "client_secret": "ELsmG9EhGuYeJTHeZKuWUhXC5Mnq4yY772AeoraN85hkuwVEVixUgqh6tudlFYXjaD0qmJbRoF_g9hGe"
     })
-    if payment.create():
-        print("Payment created successfully")
-        money += 10  # Assuming the purchase gives 10 coins
-        for link in payment.links:
-            if link.rel == "approval_url":
-                approval_url = str(link.href)
-                print("Redirect for approval: " + approval_url)
-    else:
-        print(payment.error)
+except ImportError:
+    paypalrestsdk = None
 
-print("Wogle Doice Boss Battle™")
+class DiceGameGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Wogle Doice Boss Battle™")
+        self.money = 0
+        self.health = 10
+        self.bosshealth = 100
 
-def microtransactions():
-    global money
-    #insert way to convert real money to in-game money
-    create_payment()
+        self.status_label = ttk.Label(self.root, text=self.get_status(), font=("Arial", 14))
+        self.status_label.pack(pady=10)
 
-def shopen():
-    global money, health
-    print(f"Money: {money}")
-    print(f"Health: {health}")
-    if input("Do you want to go to the shop? (yes/no): ").strip().lower() == "yes":
-        shop()
-    else:
-        print("Continuing without shopping.")
+        self.roll_button = ttk.Button(self.root, text="Roll Dice", command=self.play_game)
+        self.roll_button.pack(pady=5)
 
-def shoprand():
-    global money, health
-    loot = random.choice(["health potion", "extra life", "nothing"])
-    if loot == "health potion":
-        if health < 10:
-            health += 1
-            print("You found a health potion! Health increased by 1.")
+        self.shop_button = ttk.Button(self.root, text="Shop", command=self.open_shop)
+        self.shop_button.pack(pady=5)
+
+        self.quit_button = ttk.Button(self.root, text="Quit", command=self.root.quit)
+        self.quit_button.pack(pady=5)
+
+    def get_status(self):
+        return f"Money: {self.money} | Health: {self.health} | Boss Health: {self.bosshealth}"
+
+    def update_status(self):
+        self.status_label.config(text=self.get_status())
+
+    def play_game(self):
+        num = random.randint(1, 6)
+        nem = random.randint(1, 6)
+        self.bosshealth -= num
+        self.health -= nem
+        self.update_status()
+        message = f"You rolled a {num}.\nBoss health: {self.bosshealth}\nEnemy rolled a {nem}.\nYour health: {self.health}"
+        if self.health < 1:
+            messagebox.showinfo("Game Over", "You lose!")
+            self.ask_play_again()
+            return
+        if self.bosshealth < 1:
+            self.money += 10
+            self.update_status()
+            messagebox.showinfo("Victory!", f"You win!\nMoney: {self.money}")
+            self.ask_play_again()
+            return
+        messagebox.showinfo("Roll Result", message)
+
+    def ask_play_again(self):
+        if messagebox.askyesno("Play Again?", "Do you want to play again?"):
+            self.money = 0
+            self.health = 10
+            self.bosshealth = 100
+            self.update_status()
         else:
-            print("You found a health potion but your health is already full.")
-    elif loot == "extra life":
-        health += 5
-        print("You found an extra life! Health increased by 5.")
-    else:
-        print("The lootbox was empty. Better luck next time!")
+            self.root.quit()
 
-def shop():
-    priceisrice = input("What do you want to buy? (health potion for 5 coins, buy more coins, buy lootbox, or nothing): ").strip().lower()
-    if priceisrice == "health potion":
-        if input("Do you want to buy a health potion for 5 coins? (yes/no): ").strip().lower() == "yes":
-            global health, money
-            if money >= 5:
-                if health < 10:
-                    health += 1
-                    print(f"Health increased to {health}.")
-                else:
-                    print("Health is already at maximum.")
+    def open_shop(self):
+        shop_win = tk.Toplevel(self.root)
+        shop_win.title("Shop")
+        ttk.Label(shop_win, text=self.get_status(), font=("Arial", 12)).pack(pady=5)
+
+        ttk.Button(shop_win, text="Buy Health Potion (5 coins)", command=lambda: self.buy_health(shop_win)).pack(pady=3)
+        ttk.Button(shop_win, text="Buy 10 Coins (0.5 USD)", command=lambda: self.buy_coins(shop_win)).pack(pady=3)
+        ttk.Button(shop_win, text="Buy Lootbox (10 coins)", command=lambda: self.buy_lootbox(shop_win)).pack(pady=3)
+        ttk.Button(shop_win, text="Close", command=shop_win.destroy).pack(pady=3)
+
+    def buy_health(self, win):
+        if self.money >= 5:
+            if self.health < 10:
+                self.money -= 5
+                self.health += 1
+                self.update_status()
+                messagebox.showinfo("Shop", f"Health increased to {self.health}.")
             else:
-                print("Not enough money to buy a health potion.")
-    elif priceisrice == "buy more coins":
-        if input("Do you want to buy 10 coins for 0.5 real money (five cents USD)? (yes/no): ").strip().lower() == "yes":
-            microtransactions()
+                messagebox.showinfo("Shop", "Health is already at maximum.")
         else:
-            print("No coins purchased.")
-    elif priceisrice == "buy lootbox":
-        if input("Do you want to buy a lootbox for 10 coins? (yes/no): ").strip().lower() == "yes":
-            shoprand()
+            messagebox.showinfo("Shop", "Not enough money to buy a health potion.")
+        win.destroy()
+
+    def buy_coins(self, win):
+        if paypalrestsdk:
+            if messagebox.askyesno("Buy Coins", "Do you want to buy 10 coins for $0.5 USD?"):
+                payment = paypalrestsdk.Payment({
+                    "intent": "sale",
+                    "payer": {"payment_method": "paypal"},
+                    "transactions": [{
+                        "amount": {"total": "0.50", "currency": "USD"},
+                        "description": "Buying ten coins!"
+                    }],
+                    "redirect_urls": {
+                        "return_url": "http://localhost:3000/process_payment",
+                        "cancel_url": "http://localhost:3000/cancel_payment"
+                    }
+                })
+                if payment.create():
+                    self.money += 10
+                    self.update_status()
+                    approval_url = None
+                    for link in payment.links:
+                        if link.rel == "approval_url":
+                            approval_url = str(link.href)
+                    if approval_url:
+                        messagebox.showinfo("PayPal", f"Payment created! Approve at: {approval_url}")
+                    else:
+                        messagebox.showinfo("PayPal", "Payment created, but no approval URL found.")
+                else:
+                    messagebox.showerror("PayPal Error", str(payment.error))
         else:
-            print("No lootbox purchased.")
+            self.money += 10
+            self.update_status()
+            messagebox.showinfo("Shop", "Simulated: 10 coins added.")
+        win.destroy()
 
-def dice_roll():
-    return random.randint(1, 6)
-
-def enemy_roll():
-    return random.randint(1, 6)
-
-def play_game():
-    if input("Roll: (just hit enter)") == "":
-        num = dice_roll()
-        nem = enemy_roll()
-        global health, bosshealth
-        print(f"You rolled a {num}.")
-        bosshealth -= num
-        print(f"Boss health: {bosshealth}")
-        print(f"Enemy rolled a {nem}")
-        health -= nem
-        if health < 1:
-            print("You lose!")
-            if input("Play again?: (just hit enter)") == "":
-                play_game()
-        if bosshealth < 1:
-            print("You win!")
-            money += 10
-            print(f"Money: {money}")
-            if input("Play again?: (just hit enter)") == "":
-                play_game()
+    def buy_lootbox(self, win):
+        if self.money >= 10:
+            self.money -= 10
+            loot = random.choice(["health potion", "extra life", "nothing"])
+            if loot == "health potion":
+                if self.health < 10:
+                    self.health += 1
+                    messagebox.showinfo("Lootbox", "You found a health potion! Health increased by 1.")
+                else:
+                    messagebox.showinfo("Lootbox", "You found a health potion but your health is already full.")
+            elif loot == "extra life":
+                self.health += 5
+                messagebox.showinfo("Lootbox", "You found an extra life! Health increased by 5.")
+            else:
+                messagebox.showinfo("Lootbox", "The lootbox was empty. Better luck next time!")
+            self.update_status()
         else:
-            shopen()
-            print("Roll again!")
-            play_game()
+            messagebox.showinfo("Lootbox", "Not enough money to buy a lootbox.")
+        win.destroy()
 
-play_game()
-# dicegame.py
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = DiceGameGUI(root)
+    sv_ttk.set_theme("dark")
+    root.mainloop()
