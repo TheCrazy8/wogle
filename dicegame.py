@@ -3,9 +3,37 @@ import paypalrestsdk
 
 paypalrestsdk.configure({
     "mode": "sandbox",  # or "live"
-    "client_id": "YOUR_CLIENT_ID",
-    "client_secret": "YOUR_CLIENT_SECRET"
+    "client_id": "AYWa_1MhFT5TUYuKLrq4siBl2HjpQo1xEL6gUTNUpgyKmnmbTsx8T-d4yri2TXc-wVc6277W4dyDDgs2",
+    "client_secret": "AYWa_1MhFT5TUYuKLrq4siBl2HjpQo1xEL6gUTNUpgyKmnmbTsx8T-d4yri2TXc-wVc6277W4dyDDgs2"
 })
+
+# Example: Creating a payment
+def create_payment():
+    payment = paypalrestsdk.Payment({
+        "intent": "sale",
+        "payer": {
+            "payment_method": "paypal"
+        },
+        "transactions": [{
+            "amount": {
+                "total": "10.00",
+                "currency": "USD"
+            },
+            "description": "This is the payment transaction description."
+        }],
+        "redirect_urls": {
+            "return_url": "http://localhost:3000/process_payment",
+            "cancel_url": "http://localhost:3000/cancel_payment"
+        }
+    })
+    if payment.create():
+        print("Payment created successfully")
+        for link in payment.links:
+            if link.rel == "approval_url":
+                approval_url = str(link.href)
+                print("Redirect for approval: " + approval_url)
+    else:
+        print(payment.error)
 
 print("Wogle Doice Boss Battle™")
 
