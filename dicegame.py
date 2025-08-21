@@ -13,6 +13,7 @@ try:
 except ImportError:
     paypalrestsdk = None
 
+loopfun = 0
 paytag = f"buy_coins_{random.randint(10000, 99999)}"
 
 class DiceGameGUI:
@@ -96,20 +97,24 @@ class DiceGameGUI:
         win.destroy()
 
     def track_payment(self):
-        global paytag
+        global paytag, loopfun
         if paypalrestsdk:
             payment = paypalrestsdk.Payment.find(paytag)
             if payment and payment.state == "approved":
                 self.money += 10
                 self.update_status()
                 messagebox.showinfo("PayPal", "Payment successful! 10 coins added.")
-            else:
+                loopfun = 1
+            elif payment and payment.state == "failed":
                 messagebox.showerror("PayPal Error", "Payment not approved or not found.")
+                loopfun = 1
+            else:
+                pass
         else:
             messagebox.showinfo("PayPal", "Simulated: Payment successful! 10 coins added.")
 
     def buy_coins(self, win):
-        global paytag
+        global paytag, loopfun
         if paypalrestsdk:
             if messagebox.askyesno("Buy Coins", "Do you want to buy 10 coins for $0.5 USD?"):
                 payment = paypalrestsdk.Payment({
@@ -133,6 +138,9 @@ class DiceGameGUI:
                             approval_url = str(link.href)
                     if approval_url:
                         messagebox.showinfo("PayPal", f"Payment created! Approve at: {approval_url} (But don't actually go there in this demo and would be a waste of money)")
+                        open(approval_url, new=1)
+                        while loopfun != 1:
+                            self.track_payment()
                     else:
                         messagebox.showinfo("PayPal", "Payment created, but no approval URL found.")
                 else:
