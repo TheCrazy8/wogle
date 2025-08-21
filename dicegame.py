@@ -75,7 +75,7 @@ def shop():
             print("No coins purchased.")
     elif priceisrice == "buy lootbox":
         if input("Do you want to buy a lootbox for 10 coins? (yes/no): ").strip().lower() == "yes":
-            
+            pass
 
 
 def dice_roll():
