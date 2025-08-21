@@ -6,14 +6,28 @@ money = 0
 health = 10
 bosshealth = 100
 
-def microtransactions():
-    if money := input("Do you want to buy a health potion for 5 coins? (yes/no): ").strip().lower() == "yes":
-        global health
-        if health < 10:
-            health += 1
-            print(f"Health increased to {health}.")
-        else:
-            print("Health is already at maximum.")
+def shopen():
+    global money, health
+    print(f"Money: {money}")
+    print(f"Health: {health}")
+    if input("Do you want to go to the shop? (yes/no): ").strip().lower() == "yes":
+        shop()
+    else:
+        print("Continuing without shopping.")
+
+def shop():
+    priceisrice = input("What do you want to buy? (health potion for 5 coins, or nothing): ").strip().lower()
+    if priceisrice == "health potion":
+        if input("Do you want to buy a health potion for 5 coins? (yes/no): ").strip().lower() == "yes":
+            global health, money
+            if money >= 5:
+                if health < 10:
+                    health += 1
+                    print(f"Health increased to {health}.")
+                else:
+                    print("Health is already at maximum.")
+            else:
+                print("Not enough money to buy a health potion.")
 
 def dice_roll():
     return random.randint(1, 6)
@@ -42,6 +56,7 @@ def play_game():
             if input("Play again?: (just hit enter)") == "":
                 play_game()
         else:
+            shopen()
             print("Roll again!")
             play_game()
 
