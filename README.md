@@ -1,9 +1,9 @@
 # wogle
 # Im wogleing it
 Item ideas
-Banana
+Banana(Kirs get the banana)(Potasium)
 -Deals 1/5th of the bosses health as damage to the boss
-Shotgun with a single bullet
+Shotgun with a single bullet(NIRVANA??)
 -Instant loss
-Bandage
--restores 1/4th hp of player
+Paper hat(So much deffense)
+-blocks 1/6th of dmg
