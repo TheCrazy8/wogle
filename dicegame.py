@@ -13,6 +13,8 @@ try:
 except ImportError:
     paypalrestsdk = None
 
+paytag = f"buy_coins_{random.randint(10000, 99999)}"
+
 class DiceGameGUI:
     def __init__(self, root):
         self.root = root
@@ -90,11 +92,26 @@ class DiceGameGUI:
             messagebox.showinfo("Shop", "Not enough money to buy a health potion.")
         win.destroy()
 
+    def track_payment(self):
+        global paytag
+        if paypalrestsdk:
+            payment = paypalrestsdk.Payment.find(paytag)
+            if payment and payment.state == "approved":
+                self.money += 10
+                self.update_status()
+                messagebox.showinfo("PayPal", "Payment successful! 10 coins added.")
+            else:
+                messagebox.showerror("PayPal Error", "Payment not approved or not found.")
+        else:
+            messagebox.showinfo("PayPal", "Simulated: Payment successful! 10 coins added.")
+
     def buy_coins(self, win):
+        global paytag
         if paypalrestsdk:
             if messagebox.askyesno("Buy Coins", "Do you want to buy 10 coins for $0.5 USD?"):
                 payment = paypalrestsdk.Payment({
                     "intent": "sale",
+                    "identifier": paytag,
                     "payer": {"payment_method": "paypal"},
                     "transactions": [{
                         "amount": {"total": "0.50", "currency": "USD"},
