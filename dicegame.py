@@ -3,7 +3,7 @@ import random
 print("Wogle Doice Boss Battle™")
 
 health = 10
-bosshealth = 10
+bosshealth = 100
 
 def dice_roll():
     return random.randint(1, 6)
