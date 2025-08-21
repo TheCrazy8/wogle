@@ -16,22 +16,34 @@ except ImportError:
 class DiceGameGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Wogle Doice Boss Battle™")
         self.money = 0
         self.health = 10
         self.bosshealth = 100
 
-        self.status_label = ttk.Label(self.root, text=self.get_status(), font=("Arial", 14))
+        # Make window fullscreen and remove decorations
+        self.root.overrideredirect(True)
+        self.root.attributes('-fullscreen', True)
+
+        # Custom titlebar
+        self.titlebar = ttk.Frame(self.root)
+        self.titlebar.pack(fill='x')
+        self.title_label = ttk.Label(self.titlebar, text="Wogle Doice Boss Battle™", font=("Arial", 16, "bold"))
+        self.title_label.pack(side='left', padx=10, pady=5)
+        self.close_button = ttk.Button(self.titlebar, text="✕", command=self.root.quit)
+        self.close_button.pack(side='right', padx=10, pady=5)
+
+        # Main content frame
+        self.content = ttk.Frame(self.root)
+        self.content.pack(expand=True)
+
+        self.status_label = ttk.Label(self.content, text=self.get_status(), font=("Arial", 14))
         self.status_label.pack(pady=10)
 
-        self.roll_button = ttk.Button(self.root, text="Roll Dice", command=self.play_game)
+        self.roll_button = ttk.Button(self.content, text="Roll Dice", command=self.play_game)
         self.roll_button.pack(pady=5)
 
-        self.shop_button = ttk.Button(self.root, text="Shop", command=self.open_shop)
+        self.shop_button = ttk.Button(self.content, text="Shop", command=self.open_shop)
         self.shop_button.pack(pady=5)
-
-        self.quit_button = ttk.Button(self.root, text="Quit", command=self.root.quit)
-        self.quit_button.pack(pady=5)
 
     def get_status(self):
         return f"Money: {self.money} | Health: {self.health} | Boss Health: {self.bosshealth}"
