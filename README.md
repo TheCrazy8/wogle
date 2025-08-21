@@ -6,4 +6,4 @@ Banana(Kirs get the banana)(Potasium)
 Shotgun with a single bullet(NIRVANA??)
 -Instant loss
 Paper hat(So much deffense)
--blocks 1/6th of dmg
+-blocks 1/6th of dmgs
