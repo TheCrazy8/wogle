@@ -7,8 +7,13 @@ paypalrestsdk.configure({
     "client_secret": "AYWa_1MhFT5TUYuKLrq4siBl2HjpQo1xEL6gUTNUpgyKmnmbTsx8T-d4yri2TXc-wVc6277W4dyDDgs2"
 })
 
+money = 0
+health = 10
+bosshealth = 100
+
 # Example: Creating a payment
 def create_payment():
+    global money
     payment = paypalrestsdk.Payment({
         "intent": "sale",
         "payer": {
@@ -16,10 +21,10 @@ def create_payment():
         },
         "transactions": [{
             "amount": {
-                "total": "10.00",
+                "total": "0.50",
                 "currency": "USD"
             },
-            "description": "This is the payment transaction description."
+            "description": "Buying ten coins!"
         }],
         "redirect_urls": {
             "return_url": "http://localhost:3000/process_payment",
@@ -28,6 +33,7 @@ def create_payment():
     })
     if payment.create():
         print("Payment created successfully")
+        money += 10  # Assuming the purchase gives 10 coins
         for link in payment.links:
             if link.rel == "approval_url":
                 approval_url = str(link.href)
@@ -37,14 +43,10 @@ def create_payment():
 
 print("Wogle Doice Boss Battle™")
 
-money = 0
-health = 10
-bosshealth = 100
-
 def microtransactions():
     global money
     #insert way to convert real money to in-game money
-    print("Microtransactions are not implemented yet. Stay tuned for future updates!")
+    create_payment()
 
 def shopen():
     global money, health
