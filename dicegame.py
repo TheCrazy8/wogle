@@ -22,6 +22,9 @@ class DiceGameGUI:
         self.money = 0
         self.health = 10
         self.bosshealth = 100
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        root.geometry(f"{screen_width}x{screen_height}+0+0")
 
         self.status_label = ttk.Label(self.root, text=self.get_status(), font=("Arial", 14))
         self.status_label.pack(pady=10)
