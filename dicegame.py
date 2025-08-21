@@ -4,7 +4,7 @@ import paypalrestsdk
 paypalrestsdk.configure({
     "mode": "sandbox",  # or "live"
     "client_id": "AYWa_1MhFT5TUYuKLrq4siBl2HjpQo1xEL6gUTNUpgyKmnmbTsx8T-d4yri2TXc-wVc6277W4dyDDgs2",
-    "client_secret": "AYWa_1MhFT5TUYuKLrq4siBl2HjpQo1xEL6gUTNUpgyKmnmbTsx8T-d4yri2TXc-wVc6277W4dyDDgs2"
+    "client_secret": "ELsmG9EhGuYeJTHeZKuWUhXC5Mnq4yY772AeoraN85hkuwVEVixUgqh6tudlFYXjaD0qmJbRoF_g9hGe"
 })
 
 money = 0
