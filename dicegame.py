@@ -1,4 +1,11 @@
 import random
+import paypalrestsdk
+
+paypalrestsdk.configure({
+    "mode": "sandbox",  # or "live"
+    "client_id": "YOUR_CLIENT_ID",
+    "client_secret": "YOUR_CLIENT_SECRET"
+})
 
 print("Wogle Doice Boss Battle™")
 
