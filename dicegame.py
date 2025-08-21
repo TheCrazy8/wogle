@@ -113,7 +113,7 @@ class DiceGameGUI:
                         if link.rel == "approval_url":
                             approval_url = str(link.href)
                     if approval_url:
-                        messagebox.showinfo("PayPal", f"Payment created! Approve at: {approval_url}")
+                        messagebox.showinfo("PayPal", f"Payment created! Approve at: {approval_url} (But don't actually go there in this demo and would be a waste of money)")
                     else:
                         messagebox.showinfo("PayPal", "Payment created, but no approval URL found.")
                 else:
