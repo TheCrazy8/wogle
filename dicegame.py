@@ -57,6 +57,21 @@ def shopen():
     else:
         print("Continuing without shopping.")
 
+def shoprand():
+    global money, health
+    loot = random.choice(["health potion", "extra life", "nothing"])
+    if loot == "health potion":
+        if health < 10:
+            health += 1
+            print("You found a health potion! Health increased by 1.")
+        else:
+            print("You found a health potion but your health is already full.")
+    elif loot == "extra life":
+        health += 5
+        print("You found an extra life! Health increased by 5.")
+    else:
+        print("The lootbox was empty. Better luck next time!")
+
 def shop():
     priceisrice = input("What do you want to buy? (health potion for 5 coins, buy more coins, buy lootbox, or nothing): ").strip().lower()
     if priceisrice == "health potion":
@@ -77,7 +92,9 @@ def shop():
             print("No coins purchased.")
     elif priceisrice == "buy lootbox":
         if input("Do you want to buy a lootbox for 10 coins? (yes/no): ").strip().lower() == "yes":
-            pass
+            shoprand()
+        else:
+            print("No lootbox purchased.")
 
 def dice_roll():
     return random.randint(1, 6)
