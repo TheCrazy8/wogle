@@ -8,6 +8,9 @@ bosshealth = 10
 def dice_roll():
     return random.randint(1, 6)
 
+def enemy_roll():
+    return random.randint(1, 6)
+
 def play_game():
     if input("Roll: (just hit enter)") == "":
         num = dice_roll()
