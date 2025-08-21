@@ -71,7 +71,7 @@ def shop():
             else:
                 print("Not enough money to buy a health potion.")
     elif priceisrice == "buy more coins":
-        if input("Do you want to buy 10 coins for 5 real money? (yes/no): ").strip().lower() == "yes":
+        if input("Do you want to buy 10 coins for 0.5 real money (five cents USD)? (yes/no): ").strip().lower() == "yes":
             microtransactions()
         else:
             print("No coins purchased.")
