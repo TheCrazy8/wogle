@@ -126,7 +126,6 @@ class DiceGameGUI:
                     }
                 })
                 if payment.create():
-                    self.money += 10
                     self.update_status()
                     approval_url = None
                     for link in payment.links:
