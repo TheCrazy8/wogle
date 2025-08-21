@@ -2,8 +2,18 @@ import random
 
 print("Wogle Doice Boss Battle™")
 
+money = 0
 health = 10
 bosshealth = 100
+
+def microtransactions():
+    if money := input("Do you want to buy a health potion for 5 coins? (yes/no): ").strip().lower() == "yes":
+        global health
+        if health < 10:
+            health += 1
+            print(f"Health increased to {health}.")
+        else:
+            print("Health is already at maximum.")
 
 def dice_roll():
     return random.randint(1, 6)
@@ -27,6 +37,8 @@ def play_game():
                 play_game()
         if bosshealth < 1:
             print("You win!")
+            money += 10
+            print(f"Money: {money}")
             if input("Play again?: (just hit enter)") == "":
                 play_game()
         else:
