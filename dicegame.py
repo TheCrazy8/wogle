@@ -8,8 +8,8 @@ try:
     import paypalrestsdk
     paypalrestsdk.configure({
         "mode": "sandbox",  # or "live"
-        "client_id": "AYWa_1MhFT5TUYuKLrq4siBl2HjpQo1xEL6gUTNUpgyKmnmbTsx8T-d4yri2TXc-wVc6277W4dyDDgs2",
-        "client_secret": "ELsmG9EhGuYeJTHeZKuWUhXC5Mnq4yY772AeoraN85hkuwVEVixUgqh6tudlFYXjaD0qmJbRoF_g9hGe"
+        "client_id": "AUJZrgKvHjxiFGRcq1U0H24wCoe8SUXwHb-z9walXFnbxQFRrpvzaJ-QqJDZ41F_GRhQPhb8XbNKiih7",
+        "client_secret": "EHx22VM0teHMAhjEeA0GmL5h_Sc-nUVbSKQ1KO211Fs8S8kBaSx0flmQKxx0pIHiW8YmtB18P1oS20WF"
     })
 except ImportError:
     paypalrestsdk = None
