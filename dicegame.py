@@ -28,7 +28,7 @@ def shopen():
         print("Continuing without shopping.")
 
 def shop():
-    priceisrice = input("What do you want to buy? (health potion for 5 coins, buy more coins, or nothing): ").strip().lower()
+    priceisrice = input("What do you want to buy? (health potion for 5 coins, buy more coins, buy lootbox, or nothing): ").strip().lower()
     if priceisrice == "health potion":
         if input("Do you want to buy a health potion for 5 coins? (yes/no): ").strip().lower() == "yes":
             global health, money
@@ -43,6 +43,9 @@ def shop():
         elif priceisrice == "buy more coins":
             if input("Do you want to buy 10 coins for 5 real money? (yes/no): ").strip().lower() == "yes":
                 microtransactions()
+        elif priceisrice == "buy lootbox":
+            if input("Do you want to buy a lootbox for 10 coins? (yes/no): ").strip().lower() == "yes":
+
             else:
                 print("No coins purchased.")
 
