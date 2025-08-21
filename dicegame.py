@@ -114,7 +114,7 @@ class DiceGameGUI:
             if messagebox.askyesno("Buy Coins", "Do you want to buy 10 coins for $0.5 USD?"):
                 payment = paypalrestsdk.Payment({
                     "intent": "sale",
-                    "identifier": paytag,
+                    "id": paytag,
                     "payer": {"payment_method": "paypal"},
                     "transactions": [{
                         "amount": {"total": "0.50", "currency": "USD"},
