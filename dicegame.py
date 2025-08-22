@@ -24,6 +24,7 @@ class DiceGameGUI:
         self.money = 0
         self.health = 10
         self.bosshealth = 100
+        self.current_payment_id = None
         screen_width = root.winfo_screenwidth()
         screen_height = root.winfo_screenheight()
         root.geometry(f"{screen_width}x{screen_height}+0+0")
@@ -98,29 +99,32 @@ class DiceGameGUI:
         win.destroy()
 
     def track_payment(self):
-        global paytag, loopfun
-        if paypalrestsdk:
-            payment = paypalrestsdk.Payment.find(id, paytag)
-            if payment and payment.state == "approved":
-                self.money += 10
-                self.update_status()
-                messagebox.showinfo("PayPal", "Payment successful! 10 coins added.")
-                loopfun = 1
-            elif payment and payment.state == "failed":
-                messagebox.showerror("PayPal Error", "Payment not approved or not found.")
-                loopfun = 1
-            else:
-                pass
+        # Poll PayPal for payment status using the stored payment ID
+        if paypalrestsdk and self.current_payment_id:
+            try:
+                payment = paypalrestsdk.Payment.find(self.current_payment_id)
+                if payment and payment.state == "approved":
+                    self.money += 10
+                    self.update_status()
+                    messagebox.showinfo("PayPal", "Payment successful! 10 coins added.")
+                    self.current_payment_id = None
+                elif payment and payment.state == "failed":
+                    messagebox.showerror("PayPal Error", "Payment failed.")
+                    self.current_payment_id = None
+                else:
+                    # Not approved yet, poll again after 5 seconds
+                    self.root.after(5000, self.track_payment)
+            except Exception as e:
+                messagebox.showerror("PayPal Error", f"Error tracking payment: {e}")
+                self.current_payment_id = None
         else:
             messagebox.showinfo("PayPal", "Simulated: Payment successful! 10 coins added.")
 
     def buy_coins(self, win):
-        global paytag, loopfun
         if paypalrestsdk:
             if messagebox.askyesno("Buy Coins", "Do you want to buy 10 coins for $0.5 USD?"):
                 payment = paypalrestsdk.Payment({
                     "intent": "sale",
-                    "id": paytag,
                     "payer": {"payment_method": "paypal"},
                     "transactions": [{
                         "amount": {"total": "0.50", "currency": "USD"},
@@ -138,10 +142,11 @@ class DiceGameGUI:
                         if link.rel == "approval_url":
                             approval_url = str(link.href)
                     if approval_url:
-                        messagebox.showinfo("PayPal", f"Payment created! Approve at: {approval_url} (But don't actually go there in this demo and would be a waste of money)")
+                        self.current_payment_id = payment.id
+                        messagebox.showinfo("PayPal", f"Payment created! Approve at: {approval_url}\nAfter approval, coins will be added automatically.")
                         browser.open(approval_url, new=1)
-                        while loopfun != 1:
-                            self.track_payment()
+                        # Start polling for payment approval
+                        self.root.after(5000, self.track_payment)
                     else:
                         messagebox.showinfo("PayPal", "Payment created, but no approval URL found.")
                 else:
