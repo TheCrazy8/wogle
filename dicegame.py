@@ -81,7 +81,7 @@ class DiceGameGUI:
         ttk.Label(shop_win, text=self.get_status(), font=("Arial", 12)).pack(pady=5)
 
         ttk.Button(shop_win, text="Buy Health Potion (5 coins)", command=lambda: self.buy_health(shop_win)).pack(pady=3)
-        ttk.Button(shop_win, text="Buy 10 Coins (0.5 USD)", command=lambda: self.buy_coins(shop_win)).pack(pady=3)
+        ttk.Button(shop_win, text="Buy 10 Coins (0.05 USD)", command=lambda: self.buy_coins(shop_win)).pack(pady=3)
         ttk.Button(shop_win, text="Buy Lootbox (10 coins)", command=lambda: self.buy_lootbox(shop_win)).pack(pady=3)
         ttk.Button(shop_win, text="Close", command=shop_win.destroy).pack(pady=3)
 
@@ -122,12 +122,12 @@ class DiceGameGUI:
 
     def buy_coins(self, win):
         if paypalrestsdk:
-            if messagebox.askyesno("Buy Coins", "Do you want to buy 10 coins for $0.5 USD?"):
+            if messagebox.askyesno("Buy Coins", "Do you want to buy 10 coins for $0.05 USD?"):
                 payment = paypalrestsdk.Payment({
                     "intent": "sale",
                     "payer": {"payment_method": "paypal"},
                     "transactions": [{
-                        "amount": {"total": "0.50", "currency": "USD"},
+                        "amount": {"total": "0.05", "currency": "USD"},
                         "description": "Buying ten coins!"
                     }],
                     "redirect_urls": {
