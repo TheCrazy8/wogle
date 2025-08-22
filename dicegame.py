@@ -127,7 +127,7 @@ class DiceGameGUI:
                         "amount": {"total": "0.05", "currency": "USD"},
                         "description": "Buying ten coins!"
                     }],
-                    "transaction_info": [{
+                    "transaction_details": [{
                         "transaction_id": paytag,
                     }],
                     "redirect_urls": {
