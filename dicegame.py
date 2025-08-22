@@ -3,7 +3,6 @@ import webbrowser as browser
 import tkinter as tk
 from tkinter import ttk, messagebox
 import sv_ttk
-import requests
 
 try:
     import paypalrestsdk
@@ -16,7 +15,7 @@ except ImportError:
     paypalrestsdk = None
 
 loopfun = 0
-paytag = f"buy_coins_{random.randint(1000000, 9999999)}"
+paytag = f"buy_coins_{random.randint(10000, 99999)}"
 
 class DiceGameGUI:
     def __init__(self, root):
@@ -98,11 +97,10 @@ class DiceGameGUI:
             messagebox.showinfo("Shop", "Not enough money to buy a health potion.")
         win.destroy()
 
-    def track_payment(self, win):
+    def track_payment(self):
         global paytag, loopfun
-        
         if paypalrestsdk:
-            payment = paypalrestsdk.Payment.find(transaction_id)
+            payment = paypalrestsdk.Payment.find(id, paytag)
             if payment and payment.state == "approved":
                 self.money += 10
                 self.update_status()
@@ -122,13 +120,11 @@ class DiceGameGUI:
             if messagebox.askyesno("Buy Coins", "Do you want to buy 10 coins for $0.5 USD?"):
                 payment = paypalrestsdk.Payment({
                     "intent": "sale",
+                    "id": paytag,
                     "payer": {"payment_method": "paypal"},
                     "transactions": [{
-                        "amount": {"total": "0.05", "currency": "USD"},
+                        "amount": {"total": "0.50", "currency": "USD"},
                         "description": "Buying ten coins!"
-                    }],
-                    "transaction_details": [{
-                        "transaction_id": paytag,
                     }],
                     "redirect_urls": {
                         "return_url": "http://localhost:3000/process_payment",
