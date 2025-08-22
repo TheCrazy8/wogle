@@ -122,11 +122,13 @@ class DiceGameGUI:
             if messagebox.askyesno("Buy Coins", "Do you want to buy 10 coins for $0.5 USD?"):
                 payment = paypalrestsdk.Payment({
                     "intent": "sale",
-                    "transaction_id": paytag,
                     "payer": {"payment_method": "paypal"},
                     "transactions": [{
                         "amount": {"total": "0.05", "currency": "USD"},
                         "description": "Buying ten coins!"
+                    }],
+                    "transaction_info": [{
+                        "transaction_id": paytag,
                     }],
                     "redirect_urls": {
                         "return_url": "http://localhost:3000/process_payment",
