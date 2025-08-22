@@ -81,7 +81,7 @@ class DiceGameGUI:
         ttk.Label(shop_win, text=self.get_status(), font=("Arial", 12)).pack(pady=5)
 
         ttk.Button(shop_win, text="Buy Health Potion (5 coins)", command=lambda: self.buy_health(shop_win)).pack(pady=3)
-        ttk.Button(shop_win, text="Buy 10 Coins (0.05 USD)", command=lambda: self.buy_coins(shop_win)).pack(pady=3)
+        ttk.Button(shop_win, text="Buy 5000 Coins (5.00 USD)", command=lambda: self.buy_coins(shop_win)).pack(pady=3)
         ttk.Button(shop_win, text="Buy Lootbox (10 coins)", command=lambda: self.buy_lootbox(shop_win)).pack(pady=3)
         ttk.Button(shop_win, text="Close", command=shop_win.destroy).pack(pady=3)
 
@@ -104,9 +104,9 @@ class DiceGameGUI:
             try:
                 payment = paypalrestsdk.Payment.find(self.current_payment_id)
                 if payment and payment.state == "approved":
-                    self.money += 10
+                    self.money += 5000
                     self.update_status()
-                    messagebox.showinfo("PayPal", "Payment successful! 10 coins added.")
+                    messagebox.showinfo("PayPal", "Payment successful! 5000 coins added.")
                     self.current_payment_id = None
                 elif payment and payment.state == "failed":
                     messagebox.showerror("PayPal Error", "Payment failed.")
@@ -118,17 +118,17 @@ class DiceGameGUI:
                 messagebox.showerror("PayPal Error", f"Error tracking payment: {e}")
                 self.current_payment_id = None
         else:
-            messagebox.showinfo("PayPal", "Simulated: Payment successful! 10 coins added.")
+            messagebox.showinfo("PayPal", "Simulated: Payment successful! 5000 coins added.")
 
     def buy_coins(self, win):
         if paypalrestsdk:
-            if messagebox.askyesno("Buy Coins", "Do you want to buy 10 coins for $0.05 USD?"):
+            if messagebox.askyesno("Buy Coins", "Do you want to buy 5000 coins for $5.00 USD? (price to cover paypal transaction fees)"):
                 payment = paypalrestsdk.Payment({
                     "intent": "sale",
                     "payer": {"payment_method": "paypal"},
                     "transactions": [{
-                        "amount": {"total": "0.05", "currency": "USD"},
-                        "description": "Buying ten coins!"
+                        "amount": {"total": "5.00", "currency": "USD"},
+                        "description": "Buying five-thousand coins!"
                     }],
                     "redirect_urls": {
                         "return_url": "http://localhost:3000/process_payment",
@@ -152,9 +152,9 @@ class DiceGameGUI:
                 else:
                     messagebox.showerror("PayPal Error", str(payment.error))
         else:
-            self.money += 10
+            self.money += 5000
             self.update_status()
-            messagebox.showinfo("Shop", "Simulated: 10 coins added.")
+            messagebox.showinfo("Shop", "Simulated: 5000 coins added.")
         win.destroy()
 
     def buy_lootbox(self, win):
