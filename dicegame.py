@@ -100,7 +100,7 @@ class DiceGameGUI:
     def track_payment(self):
         global paytag, loopfun
         if paypalrestsdk:
-            payment = paypalrestsdk.Payment.find("id", paytag)
+            payment = paypalrestsdk.Payment.find(id, paytag)
             if payment and payment.state == "approved":
                 self.money += 10
                 self.update_status()
