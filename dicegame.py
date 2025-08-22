@@ -98,7 +98,7 @@ class DiceGameGUI:
             messagebox.showinfo("Shop", "Not enough money to buy a health potion.")
         win.destroy()
 
-    def track_payment(self):
+    def track_payment(self, win):
         global paytag, loopfun
         
         if paypalrestsdk:
