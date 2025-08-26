@@ -208,3 +208,4 @@ if __name__ == "__main__":
     app = DiceGameGUI(root)
     sv_ttk.set_theme("dark")
     root.mainloop()
+    root.playgame()
