@@ -111,6 +111,7 @@ class DiceGameGUI:
     def buy_hat(self, win):
         if self.money >= 15:
             self.money -= 15
+            self.defense += 1
             self.update_status()
             messagebox.showinfo("Shop", "You bought a paper hat! (defense +1)")
         else:
