@@ -51,6 +51,7 @@ class DiceGameGUI:
         messagebox.showinfo("Congratulations!", "You rolled a 6, roll again for a chance to win a banana!")
         if random.randint(1, 6) == 6:
             messagebox.showinfo("You Win!", "You rolled another 6! You win a banana!")
+            bosshealth = bosshealth - (bosshealth // 5)
 
     def play_game(self):
         num = random.randint(1, 6)
