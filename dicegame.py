@@ -47,6 +47,11 @@ class DiceGameGUI:
     def update_status(self):
         self.status_label.config(text=self.get_status())
 
+    def rollforbanana():
+        messagebox.showinfo("Congratulations!", "You rolled a 6, roll again for a chance to win a banana!")
+        if random.randint(1, 6) == 6:
+            messagebox.showinfo("You Win!", "You rolled another 6! You win a banana!")
+
     def play_game(self):
         num = random.randint(1, 6)
         nem = random.randint(1, 6)
@@ -54,6 +59,8 @@ class DiceGameGUI:
         self.health -= nem
         self.update_status()
         message = f"You rolled a {num}.\nBoss health: {self.bosshealth}\nEnemy rolled a {nem}.\nYour health: {self.health}"
+        if num == 6:
+            rollforbanana()
         if self.health < 1:
             messagebox.showinfo("Game Over", "You lose!")
             self.ask_play_again()
