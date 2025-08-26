@@ -25,7 +25,6 @@ class DiceGameGUI:
         self.health = 10
         self.defense = 0
         self.bosshealth = 100
-        self.language = "en"
         self.current_payment_id = None
         screen_width = root.winfo_screenwidth()
         screen_height = root.winfo_screenheight()
@@ -37,73 +36,7 @@ class DiceGameGUI:
         self.roll_button = ttk.Button(self.root, text="Roll Dice", command=self.play_game)
         self.roll_button.pack(pady=5)
 
-        self.language = "en"
-        self.easter_egg_button = ttk.Button(self.root, text="Easter Egg", command=self.toggle_language)
-
-    def toggle_language(self):
-        # Toggle between English and Spanish
-        self.language = "egg" if self.language == "en" else "en"
-        self.update_ui_language()
-        messagebox.showinfo(self._t("Easter Egg"), self._t("You found the easter egg! Language changed!"))
-
-    def _t(self, text):
-        # Simple translation dictionary
-        translations = {
-            "en": {
-                "Roll Dice": "Roll Dice",
-                "Shop": "Shop",
-                "Quit": "Quit",
-                "Easter Egg": "Easter Egg",
-                "You found the easter egg! Language changed!": "You found the easter egg! Language changed!",
-                "Money": "Money",
-                "Health": "Health",
-                "Boss Health": "Boss Health",
-                "Congratulations!": "Congratulations!",
-                "You rolled a 6, roll again for a chance to win a banana!": "You rolled a 6, roll again for a chance to win a banana!",
-                "You Win!": "You Win!",
-                "You rolled another 6! You win a banana!": "You rolled another 6! You win a banana!",
-                "Game Over": "Game Over",
-                "You lose!": "You lose!",
-                "Play Again?": "Play Again?",
-                "Do you want to play again?": "Do you want to play again?",
-                "Victory!": "Victory!",
-                "You win!\nMoney: ": "You win!\nMoney: ",
-                "Roll Result": "Roll Result",
-                "Instant Loss": "Instant Loss",
-                "You found a shotgun with one bullet.  It, uhh, well, its kinda not well kept, so, uhh, well, OH DANG THE BOSS ATTACK SPARKED OH SHOOT THERE GOES THE GUNPOWDER aaaaand you blew up. :/ You lose": "You found a shotgun with one bullet.  It, uhh, well, its kinda not well kept, so, uhh, well, OH DANG THE BOSS ATTACK SPARKED OH SHOOT THERE GOES THE GUNPOWDER aaaaand you blew up. :/ You lose"
-            },
-            "egg": {
-                "Roll Dice": "Roll Block",
-                "Shop": "Tem Shop",
-                "Quit": "Bye Bye!",
-                "Easter Egg": "Tem find Egg!!!!!",
-                "You found the easter egg! Language changed!": "Dont leave me tem friend!!!",
-                "Money": "Muns",
-                "Health": "Temmie Flakes :3",
-                "Boss Health": "Evil Temmie Flakes >:(",
-                "Congratulations!": "Yippie!!!",
-                "You rolled a 6, roll again for a chance to win a banana!": "Get a 6, get banan!!!",
-                "You Win!": "¡Ganaste!",
-                "You rolled another 6! You win a banana!": "BannanaananananannaS!!!!!!!!!!!!!",
-                "Game Over": "Womp Womp Womp :(",
-                "You lose!": "You Lose :(",
-                "Play Again?": "Try Again?",
-                "Do you want to play again?": "want to try again?",
-                "Victory!": "Yay!!! Victory!!!",
-                "You win!\nMoney: ": "you winned \nmuns: ",
-                "Roll Result": "rolled",
-                "Instant Loss": "ded.  Rip. :(",
-                "You found a shotgun with one bullet.  It, uhh, well, its kinda not well kept, so, uhh, well, OH DANG THE BOSS ATTACK SPARKED OH SHOOT THERE GOES THE GUNPOWDER aaaaand you blew up. :/ You lose": "Gun.  instant ded.  rip. :("
-            }
-        }
-        return translations[self.language].get(text, text)
-
-    def update_ui_language(self):
-        self.roll_button.config(text=self._t("Roll Dice"))
-        self.shop_button.config(text=self._t("Shop"))
-        self.quit_button.config(text=self._t("Quit"))
-        self.easter_egg_button.config(text=self._t("Easter Egg"))
-        self.update_status()
+        self.easter_egg_button = ttk.Button(self.root, text="Easter Egg", command=lambda: messagebox.showinfo("Easter Egg", "You found the easter egg!"))
         # Do not pack the easter egg button, so it remains hidden
         self.schedule_easter_egg()
 
@@ -131,15 +64,15 @@ class DiceGameGUI:
         self.root.after(100, self.play_game)
 
     def get_status(self):
-        return f"{self._t('Money')}: {self.money} | {self._t('Health')}: {self.health} | {self._t('Boss Health')}: {self.bosshealth}"
+        return f"Money: {self.money} | Health: {self.health} | Boss Health: {self.bosshealth}"
 
     def update_status(self):
         self.status_label.config(text=self.get_status())
 
     def rollforbanana(self):
-        messagebox.showinfo(self._t("Congratulations!"), self._t("You rolled a 6, roll again for a chance to win a banana!"))
+        messagebox.showinfo("Congratulations!", "You rolled a 6, roll again for a chance to win a banana!")
         if random.randint(1, 6) == 6:
-            messagebox.showinfo(self._t("You Win!"), self._t("You rolled another 6! You win a banana!"))
+            messagebox.showinfo("You Win!", "You rolled another 6! You win a banana!")
             self.bosshealth = self.bosshealth - (self.bosshealth // 5)
             self.update_status()
 
@@ -150,29 +83,29 @@ class DiceGameGUI:
         self.health -= (nem - self.defense)
         self.money += 2
         self.update_status()
-        message = f"{self._t('You rolled a {num}.\nBoss health: {self.bosshealth}\nEnemy rolled a {nem}.\nYour health: {self.health}').format(num=num, bosshealth=self.bosshealth, nem=nem, health=self.health)}"
+        message = f"You rolled a {num}.\nBoss health: {self.bosshealth}\nEnemy rolled a {nem}.\nYour health: {self.health}"
         if num == 6:
             self.rollforbanana()
         if self.health < 1:
-            messagebox.showinfo(self._t("Game Over"), self._t("You lose!"))
+            messagebox.showinfo("Game Over", "You lose!")
             self.ask_play_again()
             return
         if random.randint(1, 1000000) == 6:
             self.health = 0
             self.update_status()
-            messagebox.showinfo(self._t("Instant Loss"), self._t("You found a shotgun with one bullet.  It, uhh, well, its kinda not well kept, so, uhh, well, OH DANG THE BOSS ATTACK SPARKED OH SHOOT THERE GOES THE GUNPOWDER aaaaand you blew up. :/ You lose"))
+            messagebox.showinfo("Instant Loss", "You found a shotgun with one bullet.  It, uhh, well, its kinda not well kept, so, uhh, well, OH DANG THE BOSS ATTACK SPARKED OH SHOOT THERE GOES THE GUNPOWDER aaaaand you blew up. :/ You lose")
             self.ask_play_again()
             return
         if self.bosshealth < 1:
             self.money += 10
             self.update_status()
-            messagebox.showinfo(self._t("Victory!"), f"{self._t('You win!\nMoney: ')}{self.money}")
+            messagebox.showinfo("Victory!", f"You win!\nMoney: {self.money}")
             self.ask_play_again()
             return
-        messagebox.showinfo(self._t("Roll Result"), message)
+        messagebox.showinfo("Roll Result", message)
 
     def ask_play_again(self):
-        if messagebox.askyesno(self._t("Play Again?"), self._t("Do you want to play again?")):
+        if messagebox.askyesno("Play Again?", "Do you want to play again?"):
             self.money = 0
             self.health = 10
             self.bosshealth = 100
