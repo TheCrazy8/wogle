@@ -67,6 +67,12 @@ class DiceGameGUI:
             messagebox.showinfo("Game Over", "You lose!")
             self.ask_play_again()
             return
+        if random.randint(1, 1000000) == 6:
+            self.health = 0
+            self.update_status()
+            messagebox.showinfo("Instant Loss", "You found a shotgun with one bullet.  It, uhh, well, its kinda not well kept, so, uhh, well, OH DANG THE BOSS ATTACK SPARKED OH SHOOT THERE GOES THE GUNPOWDER aaaaand you blew up. :/ You lose")
+            self.ask_play_again()
+            return
         if self.bosshealth < 1:
             self.money += 10
             self.update_status()
