@@ -92,7 +92,7 @@ class DiceGameGUI:
         ttk.Button(shop_win, text="Buy Health Potion (5 coins)", command=lambda: self.buy_health(shop_win)).pack(pady=3)
         ttk.Button(shop_win, text="Buy 5000 Coins (5.00 USD)", command=lambda: self.buy_coins(shop_win)).pack(pady=3)
         ttk.Button(shop_win, text="Buy Lootbox (10 coins)", command=lambda: self.buy_lootbox(shop_win)).pack(pady=3)
-        ttk.Button(shop_win, text="Buy Paper Hat (15 coins)", command=lambda: self.buy_hat.pack(pady=3)
+        ttk.Button(shop_win, text="Buy Paper Hat (15 coins)", command=lambda: self.buy_hat(shop_win)).pack(pady=3)
         ttk.Button(shop_win, text="Close", command=shop_win.destroy).pack(pady=3)
 
     def buy_health(self, win):
