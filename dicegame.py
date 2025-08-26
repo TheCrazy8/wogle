@@ -25,7 +25,7 @@ class DiceGameGUI:
         self.health = 10
         self.defense = 0
         self.bosshealth = 100
-        self.language
+        self.language = "en"
         self.current_payment_id = None
         screen_width = root.winfo_screenwidth()
         screen_height = root.winfo_screenheight()
