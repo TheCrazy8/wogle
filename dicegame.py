@@ -23,6 +23,7 @@ class DiceGameGUI:
         self.root.title("Wogle Doice Boss Battle™")
         self.money = 0
         self.health = 10
+        self.defense = 0
         self.bosshealth = 100
         self.current_payment_id = None
         screen_width = root.winfo_screenwidth()
@@ -57,7 +58,7 @@ class DiceGameGUI:
         num = random.randint(1, 6)
         nem = random.randint(1, 6)
         self.bosshealth -= num
-        self.health -= nem
+        self.health -= (nem - defense)
         self.update_status()
         message = f"You rolled a {num}.\nBoss health: {self.bosshealth}\nEnemy rolled a {nem}.\nYour health: {self.health}"
         if num == 6:
@@ -91,6 +92,7 @@ class DiceGameGUI:
         ttk.Button(shop_win, text="Buy Health Potion (5 coins)", command=lambda: self.buy_health(shop_win)).pack(pady=3)
         ttk.Button(shop_win, text="Buy 5000 Coins (5.00 USD)", command=lambda: self.buy_coins(shop_win)).pack(pady=3)
         ttk.Button(shop_win, text="Buy Lootbox (10 coins)", command=lambda: self.buy_lootbox(shop_win)).pack(pady=3)
+        ttk.Button(shop_win, text="Buy Paper Hat (15 coins)", command=lambda: self.buy_hat.pack(pady=3)
         ttk.Button(shop_win, text="Close", command=shop_win.destroy).pack(pady=3)
 
     def buy_health(self, win):
@@ -104,6 +106,15 @@ class DiceGameGUI:
                 messagebox.showinfo("Shop", "Health is already at maximum.")
         else:
             messagebox.showinfo("Shop", "Not enough money to buy a health potion.")
+        win.destroy()
+
+    def buy_hat(self, win):
+        if self.money >= 15:
+            self.money -= 15
+            self.update_status()
+            messagebox.showinfo("Shop", "You bought a paper hat! (defense +1)")
+        else:
+            messagebox.showinfo("Shop", "Not enough money to buy a paper hat.")
         win.destroy()
 
     def track_payment(self):
