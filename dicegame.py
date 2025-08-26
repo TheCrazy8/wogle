@@ -38,11 +38,11 @@ class DiceGameGUI:
 
         self.language = "en"
         self.easter_egg_button = ttk.Button(self.root, text="Easter Egg", command=self.toggle_language)
-    def toggle_language(self):
-        # Toggle between English and Spanish
-        self.language = "egg" if self.language == "en" else "en"
-        self.update_ui_language()
-        messagebox.showinfo(self._t("Easter Egg"), self._t("You found the easter egg! Language changed!"))
+        def toggle_language(self):
+            # Toggle between English and Spanish
+            self.language = "egg" if self.language == "en" else "en"
+            self.update_ui_language()
+            messagebox.showinfo(self._t("Easter Egg"), self._t("You found the easter egg! Language changed!"))
 
     def _t(self, text):
         # Simple translation dictionary
