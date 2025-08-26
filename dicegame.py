@@ -42,27 +42,33 @@ class DiceGameGUI:
         self.quit_button = ttk.Button(self.root, text="Quit", command=self.root.quit)
         self.quit_button.pack(pady=5)
 
+    # Start the game automatically when the window opens
+        # Start the game automatically when the window opens
+        self.root.after(100, self.play_game)
+    self.root.after(100, self.play_game)
+
     def get_status(self):
         return f"Money: {self.money} | Health: {self.health} | Boss Health: {self.bosshealth}"
 
     def update_status(self):
         self.status_label.config(text=self.get_status())
 
-    def rollforbanana():
+    def rollforbanana(self):
         messagebox.showinfo("Congratulations!", "You rolled a 6, roll again for a chance to win a banana!")
         if random.randint(1, 6) == 6:
             messagebox.showinfo("You Win!", "You rolled another 6! You win a banana!")
-            bosshealth = bosshealth - (bosshealth // 5)
+            self.bosshealth = self.bosshealth - (self.bosshealth // 5)
+            self.update_status()
 
     def play_game(self):
         num = random.randint(1, 6)
         nem = random.randint(1, 6)
         self.bosshealth -= num
-        self.health -= (nem - defense)
+        self.health -= (nem - self.defense)
         self.update_status()
         message = f"You rolled a {num}.\nBoss health: {self.bosshealth}\nEnemy rolled a {nem}.\nYour health: {self.health}"
         if num == 6:
-            rollforbanana()
+            self.rollforbanana()
         if self.health < 1:
             messagebox.showinfo("Game Over", "You lose!")
             self.ask_play_again()
@@ -208,4 +214,3 @@ if __name__ == "__main__":
     app = DiceGameGUI(root)
     sv_ttk.set_theme("dark")
     root.mainloop()
-    root.playgame()
