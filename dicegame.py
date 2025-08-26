@@ -25,6 +25,7 @@ class DiceGameGUI:
         self.health = 10
         self.defense = 0
         self.bosshealth = 100
+        self.temmie_mode = False
         self.current_payment_id = None
         screen_width = root.winfo_screenwidth()
         screen_height = root.winfo_screenheight()
@@ -35,6 +36,15 @@ class DiceGameGUI:
 
         self.roll_button = ttk.Button(self.root, text="Roll Dice", command=self.play_game)
         self.roll_button.pack(pady=5)
+
+        self.shop_button = ttk.Button(self.root, text="Shop", command=self.open_shop)
+        self.shop_button.pack(pady=5)
+
+        self.quit_button = ttk.Button(self.root, text="Quit", command=self.root.quit)
+        self.quit_button.pack(pady=5)
+
+        # Start the game automatically when the window opens
+        self.root.after(100, self.play_game)
 
         self.temmie_mode = False
         self.easter_egg_button = ttk.Button(self.root, text="Easter Egg", command=self.enable_temmie_mode)
@@ -100,15 +110,6 @@ class DiceGameGUI:
 
     def hide_easter_egg(self):
         self.easter_egg_button.pack_forget()
-
-        self.shop_button = ttk.Button(self.root, text="Shop", command=self.open_shop)
-        self.shop_button.pack(pady=5)
-
-        self.quit_button = ttk.Button(self.root, text="Quit", command=self.root.quit)
-        self.quit_button.pack(pady=5)
-
-        # Start the game automatically when the window opens
-        self.root.after(100, self.play_game)
 
     def get_status(self):
         status = f"Money: {self.money} | Health: {self.health} | Boss Health: {self.bosshealth}"
