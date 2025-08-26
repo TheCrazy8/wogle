@@ -42,10 +42,8 @@ class DiceGameGUI:
         self.quit_button = ttk.Button(self.root, text="Quit", command=self.root.quit)
         self.quit_button.pack(pady=5)
 
-    # Start the game automatically when the window opens
         # Start the game automatically when the window opens
         self.root.after(100, self.play_game)
-    self.root.after(100, self.play_game)
 
     def get_status(self):
         return f"Money: {self.money} | Health: {self.health} | Boss Health: {self.bosshealth}"
