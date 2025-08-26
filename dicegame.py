@@ -36,7 +36,7 @@ class DiceGameGUI:
         self.roll_button = ttk.Button(self.root, text="Roll Dice", command=self.play_game)
         self.roll_button.pack(pady=5)
 
-        self.easter_egg_button = ttk.Button(self.root, text="Easter Egg", command=lambda: messagebox.showinfo("Easter Egg", "You found the easter egg!"))
+        self.easter_egg_button = ttk.Button(self.root, text="Easter Egg", command=lambda: messagebox.showinfo("Easter Egg", "You found the easter egg!  Enabling Temmie Text!"))
         # Do not pack the easter egg button, so it remains hidden
         self.schedule_easter_egg()
 
