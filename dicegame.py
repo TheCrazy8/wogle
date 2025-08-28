@@ -151,7 +151,10 @@ class DiceGameGUI:
         num = random.randint(1, 6)
         nem = random.randint(1, 6)
         self.bosshealth -= num
-        self.health -= (nem - self.defense)
+        if nem > self.defense:
+            self.health -= (nem - self.defense)
+        else:
+            self.health -= 0
         self.money += 2
         self.update_status()
         message = f"You rolled a {num}.\nBoss health: {self.bosshealth}\nEnemy rolled a {nem}.\nYour health: {self.health}"
