@@ -205,9 +205,9 @@ class DiceGameGUI:
 
     def buy_health(self, win):
         if self.money >= 5:
-            if self.health < 10:
+            if self.health < 50:
                 self.money -= 5
-                self.health += 1
+                self.health += 5
                 self.update_status()
                 msg = f"Health increased to {self.health}."
                 if self.temmie_mode:
@@ -332,8 +332,8 @@ class DiceGameGUI:
             self.money -= 10
             loot = random.choice(["health potion", "extra life", "nothing"])
             if loot == "health potion":
-                if self.health < 10:
-                    self.health += 1
+                if self.health < 50:
+                    self.health += 5
                     msg = "You found a health potion! Health increased by 1."
                 else:
                     msg = "You found a health potion but your health is already full."
