@@ -98,8 +98,8 @@ class DiceGameGUI:
         # Do not pack the easter egg button, so it remains hidden
 
     def schedule_easter_egg(self):
-        # Try to show the easter egg button every minute
-        self.root.after(60000, self.try_show_easter_egg)
+        # Try to show the easter egg button every second
+        self.root.after(6000, self.try_show_easter_egg)
 
     def try_show_easter_egg(self):
         # 1 in 5 chance to show the button each minute
