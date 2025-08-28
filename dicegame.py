@@ -124,8 +124,8 @@ class DiceGameGUI:
         self.status_label.config(text=self.get_status())
 
     def rollforbanana(self):
-        msg1 = "Congratulations! You rolled a 6 or more, roll again for a chance to win a banana!"
-        msg2 = "You Win! You rolled another 6! You win a banana!"
+        msg1 = "Congratulations! You rolled a 15 or more, roll again for a chance to win a banana!"
+        msg2 = "You Win! You rolled 6! You win a banana!"
         if self.temmie_mode:
             msg1 = self.temmie_text(msg1)
             msg2 = self.temmie_text(msg2)
@@ -166,7 +166,7 @@ class DiceGameGUI:
         message = f"You rolled a {num}.\nBoss health: {self.bosshealth}\nEnemy rolled a {nem}.\nYour health: {self.health}"
         if self.temmie_mode:
             message = self.temmie_text(message)
-        if num >= 6:
+        if num >= 15:
             self.rollforbanana()
         if self.health < 1:
             msg = "You lose!"
