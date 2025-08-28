@@ -113,7 +113,7 @@ class DiceGameGUI:
         self.easter_egg_button.pack_forget()
 
     def get_status(self):
-        status = f"Money: {self.money} | Health: {self.health} | Boss Health: {self.bosshealth}"
+        status = f"Money: {self.money} | Health: {self.health} | Boss Health: {self.bosshealth} | Wins: {self.wins}"
         if self.temmie_mode:
             return self.temmie_text(status)
         return status
