@@ -131,6 +131,7 @@ class DiceGameGUI:
             messagebox.showinfo("You Win!", msg2)
             self.bosshealth = self.bosshealth - (self.bosshealth // 5)
             self.update_status()
+
     def start_game(self):
         msg = "Welcome to Wogle Doice Boss Battle™! Roll the dice to attack the boss. If you roll a 6, you get a chance to win a banana and deal extra damage! You can visit the shop to buy health potions, lootboxes, and paper hats for defense. Good luck!"
         if self.temmie_mode:
@@ -190,9 +191,7 @@ class DiceGameGUI:
         if self.temmie_mode:
             msg = self.temmie_text(msg)
         if messagebox.askyesno("Play Again?", msg):
-            self.money = 0
-            self.health = 10
-            self.bosshealth = 100
+            self.start_game()
             self.update_status()
         else:
             self.root.quit()
