@@ -44,7 +44,7 @@ class DiceGameGUI:
         self.quit_button.pack(pady=5)
 
         # Start the game automatically when the window opens
-        self.root.after(100, self.play_game)
+        self.root.after(100, self.start_game)
 
         self.temmie_mode = False
         self.easter_egg_button = ttk.Button(self.root, text="Easter Egg", command=self.enable_temmie_mode)
@@ -131,6 +131,19 @@ class DiceGameGUI:
             messagebox.showinfo("You Win!", msg2)
             self.bosshealth = self.bosshealth - (self.bosshealth // 5)
             self.update_status()
+    def start_game(self):
+        msg = "Welcome to Wogle Doice Boss Battle™! Roll the dice to attack the boss. If you roll a 6, you get a chance to win a banana and deal extra damage! You can visit the shop to buy health potions, lootboxes, and paper hats for defense. Good luck!"
+        if self.temmie_mode:
+            msg = self.temmie_text(msg)
+        messagebox.showinfo("Welcome!", msg)
+        self.money = 5
+        self.health = 25
+        self.defense = 0
+        self.bosshealth = 100
+        self.temmie_mode = False
+        self.current_payment_id = None
+        self.update_status()
+        self.play_game()
 
     def play_game(self):
         self.schedule_easter_egg()
