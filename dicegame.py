@@ -22,6 +22,8 @@ class DiceGameGUI:
         self.root = root
         self.root.title("Wogle Doice Boss Battle™")
         self.money = 5
+        self.stock20 = True
+        self.max = 6
         self.health = 25
         self.defense = 0
         self.bosshealth = 100
@@ -139,6 +141,8 @@ class DiceGameGUI:
             msg = self.temmie_text(msg)
         messagebox.showinfo("Welcome!", msg)
         self.money = 5
+        self.stock20 = True
+        self.max = 6
         self.health = 25
         self.defense = 0
         self.bosshealth = 100
@@ -150,7 +154,7 @@ class DiceGameGUI:
 
     def play_game(self):
         self.schedule_easter_egg()
-        num = random.randint(1, 6)
+        num = random.randint(1, self.max)
         nem = random.randint(1, 6)
         self.bosshealth -= num
         if nem > self.defense:
@@ -162,7 +166,7 @@ class DiceGameGUI:
         message = f"You rolled a {num}.\nBoss health: {self.bosshealth}\nEnemy rolled a {nem}.\nYour health: {self.health}"
         if self.temmie_mode:
             message = self.temmie_text(message)
-        if num == 6:
+        if num >= 6:
             self.rollforbanana()
         if self.health < 1:
             msg = "You lose!"
@@ -217,11 +221,26 @@ class DiceGameGUI:
             ("Buy 5000 Coins (5.00 USD)", lambda: self.buy_coins(shop_win)),
             ("Buy Lootbox (10 coins)", lambda: self.buy_lootbox(shop_win)),
             ("Buy Paper Hat (15 coins)", lambda: self.buy_hat(shop_win)),
+            ("Buy D20 (7 coins)", lambda: self.buy_D20(shop_win)),
             ("Close", shop_win.destroy)
         ]
         for text, cmd in btns:
             btn_text = self.temmie_text(text) if self.temmie_mode else text
             ttk.Button(shop_win, text=btn_text, command=cmd).pack(pady=3)
+
+    def buy_D20(self, win):
+        if self.money >= 7 and self.stock20 == True:
+            self.money -= 7
+            self.max = 20
+            self.stock20 = False
+            self.update_status()
+
+        else:
+            msg = "Not enough money to buy a D20."
+            if self.temmie_mode:
+                msg = self.temmie_text(msg)
+            messagebox.showinfo("Shop", msg)
+        win.destroy()
 
     def buy_health(self, win):
         if self.money >= 5:
