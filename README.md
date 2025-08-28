@@ -7,3 +7,4 @@ Shotgun with a single bullet(NIRVANA??) [IN]
 -Instant loss
 Paper hat(So much defense) [IN]
 -blocks 1/6th of dmg
+heh
