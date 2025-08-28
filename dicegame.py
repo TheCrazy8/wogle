@@ -25,6 +25,7 @@ class DiceGameGUI:
         self.health = 25
         self.defense = 0
         self.bosshealth = 100
+        self.wins = 0
         self.temmie_mode = False
         self.current_payment_id = None
         screen_width = root.winfo_screenwidth()
@@ -141,6 +142,7 @@ class DiceGameGUI:
         self.health = 25
         self.defense = 0
         self.bosshealth = 100
+        self.wins = 0
         self.temmie_mode = False
         self.current_payment_id = None
         self.update_status()
@@ -185,7 +187,10 @@ class DiceGameGUI:
             if self.temmie_mode:
                 msg = self.temmie_text(msg)
             messagebox.showinfo("Victory!", msg)
-            self.ask_play_again()
+            self.health = 25
+            self.bosshealth = 100
+            self.wins += 1
+            self.play_game()
             return
         messagebox.showinfo("Roll Result", message)
 
