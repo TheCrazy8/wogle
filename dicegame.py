@@ -21,8 +21,8 @@ class DiceGameGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Wogle Doice Boss Battle™")
-        self.money = 0
-        self.health = 10
+        self.money = 5
+        self.health = 25
         self.defense = 0
         self.bosshealth = 100
         self.temmie_mode = False
