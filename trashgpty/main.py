@@ -1,4 +1,8 @@
 import ollama
+from ollama import chat
+from ollama import ChatResponse
+ollama.pull('llama2')
+
 def main():
     # Send a chat message to a specified model
     response = ollama.chat(model='llama2', messages=[
