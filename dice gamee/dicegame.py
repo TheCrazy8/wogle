@@ -3,7 +3,7 @@ import webbrowser as browser
 import tkinter as tk
 from tkinter import ttk, messagebox
 import sv_ttk
-
+ 
 try:
     import paypalrestsdk
     paypalrestsdk.configure({
