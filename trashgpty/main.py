@@ -6,17 +6,18 @@ from tkinter import ttk
 import threading
 import sv_ttk
 
+model = input("Enter model name (default 'gemma3'): ") or "gemma3"
 # Pull the model once at startup (will noop if already present)
 try:
-    ollama.pull('gemma3')
+    ollama.pull(f'{model}')
 except Exception as e:
-    print(f"Warning: could not pull model gemma3: {e}")
+    print(f"Warning: could not pull model {model}: {e}")
 
 
 def main():
     """Launch a simple Tkinter chat UI for the gemma3 model."""
     root = tk.Tk()
-    root.title("Gemma Chat")
+    root.title("AI Chat")
 
     # Conversation display
     text_frame = ttk.Frame(root, padding=10)
@@ -85,7 +86,7 @@ def main():
     send_btn.configure(command=send)
     entry.bind('<Return>', send)
 
-    append("Gemma Chat ready. Type a message and press Enter or Send.")
+    append("AI Chat ready. Type a message and press Enter or Send.")
     entry.focus()
 
     sv_ttk.set_theme("dark")
