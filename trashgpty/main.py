@@ -1,7 +1,7 @@
 import ollama
 
 ollama.pull('llama2')
-
+name = "__main__"
 def main():
     # Send a chat message to a specified model
     response = ollama.chat(model='llama2', messages=[
