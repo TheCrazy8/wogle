@@ -9,7 +9,7 @@ try:
 except ImportError:
     sv_ttk = None  # Themeing is optional
 
-import os, io, base64, datetime, json
+import os, io, base64, datetime, json, re
 try:
     from PIL import Image, ImageTk
     _PIL_AVAILABLE = True
@@ -24,7 +24,7 @@ except Exception:
     _REQUESTS_AVAILABLE = False
 
 # Fixed text model (Ollama)
-TEXT_MODEL = 'gemma3'
+TEXT_MODEL = 'gpt-oss:120b'
 
 # Stable Diffusion WebUI API endpoint (adjust if different)
 SD_API_URL = 'http://127.0.0.1:7860'
@@ -35,12 +35,12 @@ loaded_models = set()
 _image_refs = []  # Prevent GC of PhotoImages
 
 def main():
-    """Tkinter chat UI with fixed text model (gemma3) + external Stable Diffusion (Automatic1111) for /img."""
+    """Tkinter chat UI with fixed text model (gemma3) + external Stable Diffusion for /img and web fetch via /web."""
     root = tk.Tk()
-    root.title("AI Chat (gemma3 + SD WebUI)")
+    root.title("AI Chat (GPToss + SD + /web)")
 
     history_lock = threading.Lock()
-    messages = [{'role': 'system', 'content': "You are a helpful AI assistant."}]
+    messages = [{'role': 'system', 'content': "You are a helpful AI assistant. You may be given fetched web excerpts labeled 'WEB EXCERPT' to ground answers."}]
 
     # --- Top bar ---
     top_frame = ttk.Frame(root, padding=(10, 10, 10, 0))
@@ -152,17 +152,7 @@ def main():
 
     def initial_pull():
         pull_model_if_needed(TEXT_MODEL)
-        if _REQUESTS_AVAILABLE:
-            try:
-                r = requests.get(f'{SD_API_URL}/sdapi/v1/progress', timeout=3)
-                if r.status_code == 200:
-                    pull_status_var.set('Models & SD ready')
-                else:
-                    pull_status_var.set('Text ready / SD unreachable')
-            except Exception:
-                pull_status_var.set('Text ready / SD offline')
-        else:
-            pull_status_var.set('Text ready / install requests for SD')
+        pull_status_var.set('Text ready')
 
     threading.Thread(target=initial_pull, daemon=True).start()
 
@@ -189,11 +179,8 @@ def main():
         convo.configure(state='disabled')
         streaming_active['value'] = False
 
-    # --- /img parsing ---
+    # --- /img parsing (unchanged) ---
     def parse_image_command(raw: str):
-        """/img <prompt> [|| negative prompt]
-        Example: /img a red sunset over mountains || blurry, low quality
-        """
         body = raw[len('/img'):].strip()
         if '||' in body:
             prompt, negative = body.split('||', 1)
@@ -255,6 +242,114 @@ def main():
             else:
                 root.after(0, lambda fn=filename: append(f'Image saved: {fn} (install Pillow to preview)'))
 
+    # --- /web fetch ---
+    def sanitize_url_or_query(arg: str):
+        if re.match(r'^https?://', arg, re.I):
+            return arg, None
+        # treat as query -> use DuckDuckGo lite html (no API key)
+        return None, arg
+
+    def duckduckgo_search(query: str, max_results=3):
+        if not _REQUESTS_AVAILABLE:
+            return []
+        try:
+            r = requests.get('https://duckduckgo.com/html/', params={'q': query}, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
+            if r.status_code != 200:
+                return []
+            # crude extraction of links
+            links = re.findall(r'<a rel="nofollow" class="result__a" href="(.*?)"', r.text)
+            # decode & filter
+            cleaned = []
+            for l in links:
+                if l.startswith('http') and 'duckduckgo.com' not in l:
+                    cleaned.append(l)
+                if len(cleaned) >= max_results:
+                    break
+            return cleaned
+        except Exception:
+            return []
+
+    def fetch_url(url: str, max_chars=6000):
+        if not _REQUESTS_AVAILABLE:
+            return '[requests not installed]', ''
+        try:
+            resp = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+            if resp.status_code != 200:
+                return f'[HTTP {resp.status_code}]', ''
+            text = resp.text
+        except Exception as e:
+            return f'[Fetch error: {e}]', ''
+        # strip tags
+        stripped = re.sub(r'<script.*?</script>|<style.*?</style>', '', text, flags=re.S|re.I)
+        stripped = re.sub(r'<[^>]+>', ' ', stripped)
+        stripped = re.sub(r'&nbsp;|&amp;|&lt;|&gt;', ' ', stripped)
+        stripped = re.sub(r'\s+', ' ', stripped).strip()
+        snippet = stripped[:max_chars]
+        return None, snippet
+
+    def summarize_snippet(snippet: str):
+        # Use model to summarize snippet into shorter context chunk(s)
+        if not snippet:
+            return '[Empty snippet]'
+        # split into ~1k char chunks
+        chunks = []
+        size = 1000
+        for i in range(0, len(snippet), size):
+            chunks.append(snippet[i:i+size])
+        summaries = []
+        for idx, ch in enumerate(chunks[:4]):  # limit
+            try:
+                resp = chat(model=TEXT_MODEL, messages=[
+                    {'role': 'system', 'content': 'Summarize the provided web text accurately and concisely.'},
+                    {'role': 'user', 'content': ch}
+                ])
+                summaries.append(resp['message']['content'])
+            except Exception as e:
+                summaries.append(f'[Summarization error chunk {idx}: {e}]')
+        return '\n'.join(summaries)
+
+    def handle_web_command(raw: str):
+        arg = raw[len('/web'):].strip()
+        if not arg:
+            append('[Usage] /web <url or search terms>')
+            return finalize_web(None)
+        url, query = sanitize_url_or_query(arg)
+        urls = []
+        if url:
+            urls = [url]
+        else:
+            append(f'[Searching: {query}]')
+            urls = duckduckgo_search(query, max_results=2)
+            if not urls:
+                append('[No search results]')
+                return finalize_web(None)
+        append(f'[Fetching {len(urls)} source(s)]')
+        def worker():
+            combined_contexts = []
+            for u in urls:
+                err, snippet = fetch_url(u)
+                if err:
+                    root.after(0, lambda e=err: append(f'{u} -> {e}'))
+                    continue
+                summary = summarize_snippet(snippet)
+                combined_contexts.append(f'URL: {u}\nSUMMARY:\n{summary}')
+            if not combined_contexts:
+                root.after(0, lambda: finalize_web(None))
+                return
+            web_block = '\n\n'.join(combined_contexts)
+            with history_lock:
+                messages.append({'role': 'system', 'content': f'WEB EXCERPT BEGIN\n{web_block}\nWEB EXCERPT END'})
+            root.after(0, lambda: finalize_web(len(combined_contexts)))
+        threading.Thread(target=worker, daemon=True).start()
+
+    def finalize_web(ct):
+        send_btn.configure(state='normal')
+        entry.configure(state='normal')
+        entry_var.set('')
+        if ct:
+            append(f'[Added {ct} summarized source(s) to context]')
+        entry.focus()
+
     # --- Text inference ---
     def do_inference(user_msg: str):
         pull_model_if_needed(TEXT_MODEL)
@@ -315,6 +410,9 @@ def main():
         if user_msg.startswith('/img'):
             handle_image_command(user_msg)
             return
+        if user_msg.startswith('/web'):
+            handle_web_command(user_msg)
+            return
         append(f'You: {user_msg}')
         threading.Thread(target=do_inference, args=(user_msg,), daemon=True).start()
 
@@ -327,8 +425,8 @@ def main():
 
     # Initial message
     if not _REQUESTS_AVAILABLE:
-        append('Install requests (pip install requests) for image generation.')
-    append('Ready. Text via gemma3. Images: /img <prompt> [|| negative]. Requires running Automatic1111 at 127.0.0.1:7860.')
+        append('Install requests (pip install requests) for /web & image generation.')
+    append('Ready. Commands: /img <prompt> [|| negative], /web <url or search terms>. Web excerpts are summarized and added to context.')
     entry.focus()
 
     if sv_ttk is not None:
