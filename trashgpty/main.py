@@ -4,7 +4,11 @@ from ollama import ChatResponse
 import tkinter as tk
 from tkinter import ttk
 import threading
-import sv_ttk
+
+try:
+    import sv_ttk
+except ImportError:
+    sv_ttk = None  # Themeing is optional
 
 # Keep track of which models we've already pulled in this session
 loaded_models = set()
@@ -64,10 +68,10 @@ def main():
     root.rowconfigure(1, weight=1)
 
     convo = tk.Text(text_frame, wrap="word", height=20, width=80, state="disabled")
-    convo.grid(row=0, column=0, columnspan=5, sticky="nsew")
+    convo.grid(row=0, column=0, columnspan=6, sticky="nsew")
 
     scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=convo.yview)
-    scrollbar.grid(row=0, column=5, sticky="ns")
+    scrollbar.grid(row=0, column=6, sticky="ns")
     convo.configure(yscrollcommand=scrollbar.set)
 
     text_frame.rowconfigure(0, weight=1)
@@ -85,17 +89,38 @@ def main():
     clear_btn = ttk.Button(text_frame, text="Clear", command=lambda: clear_conversation())
     clear_btn.grid(row=1, column=3, padx=5, pady=(8,0))
 
+    dump_btn = ttk.Button(text_frame, text="Dump History")
+    dump_btn.grid(row=1, column=4, padx=5, pady=(8,0))
+
     quit_btn = ttk.Button(text_frame, text="Quit", command=root.destroy)
-    quit_btn.grid(row=1, column=4, padx=5, pady=(8,0))
+    quit_btn.grid(row=1, column=5, padx=5, pady=(8,0))
 
     load_btn = ttk.Button(top_frame, text="Load / Pull")
     load_btn.grid(row=0, column=3, padx=5, sticky='w')
 
     def append(text: str):
+        # GUI append
         convo.configure(state="normal")
         convo.insert("end", text + "\n")
         convo.see("end")
         convo.configure(state="disabled")
+        # Mirror to console immediately
+        print(text)
+
+    def format_history_lines(include_system=False):
+        with history_lock:
+            for msg in messages:
+                if msg['role'] == 'system' and not include_system:
+                    continue
+                role = msg['role']
+                content = msg['content']
+                yield f"[{role}] {content}"
+
+    def print_history(include_system=False):
+        print("\n=== Conversation History ===")
+        for line in format_history_lines(include_system=include_system):
+            print(line)
+        print("=== End History ===\n")
 
     def clear_conversation():
         with history_lock:
@@ -106,6 +131,7 @@ def main():
         convo.delete('1.0','end')
         convo.configure(state='disabled')
         append("[Conversation cleared]")
+        print_history(include_system=True)
 
     def pull_model_if_needed(model_name: str):
         if model_name in loaded_models:
@@ -134,7 +160,6 @@ def main():
         pull_model_if_needed(model_name)
         try:
             with history_lock:
-                # Prepare a copy including the new user message for streaming to model
                 temp_history = messages + [{'role': 'user', 'content': user_msg}]
             response: ChatResponse = chat(model=model_name, messages=temp_history)
             resp = response['message']['content']
@@ -144,11 +169,12 @@ def main():
         root.after(0, lambda: finalize_response(user_msg, resp, model_name))
 
     def finalize_response(user_msg: str, resp: str, model_name: str):
-        # Persist both user and assistant messages
         with history_lock:
             messages.append({'role': 'user', 'content': user_msg})
             messages.append({'role': 'assistant', 'content': resp})
         append(f"{model_name}: {resp}")
+        # Dump updated history to console automatically
+        print_history(include_system=False)
         send_btn.configure(state="normal")
         entry.configure(state="normal")
         entry_var.set("")
@@ -160,11 +186,14 @@ def main():
         if not user_msg:
             return
         append(f"You: {user_msg}")
-        # Disable input while processing
         send_btn.configure(state="disabled")
         entry.configure(state="disabled")
         threading.Thread(target=do_inference, args=(user_msg, model_name), daemon=True).start()
 
+    def dump_history_action():
+        print_history(include_system=True)
+
+    dump_btn.configure(command=dump_history_action)
     send_btn.configure(command=send)
     entry.bind('<Return>', send)
 
