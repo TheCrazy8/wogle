@@ -4,6 +4,7 @@ from ollama import ChatResponse
 import tkinter as tk
 from tkinter import ttk
 import threading
+import torch
 try:
     import sv_ttk
 except ImportError:
