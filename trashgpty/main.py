@@ -17,5 +17,7 @@ def main():
     # or access fields directly from the response object
     print(response.message.content)
 
+    main()
+
 if __name__ == "__main__":
     main()
