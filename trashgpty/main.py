@@ -98,6 +98,11 @@ def main():
     load_btn = ttk.Button(top_frame, text="Load / Pull")
     load_btn.grid(row=0, column=3, padx=5, sticky='w')
 
+    # State for streaming
+    streaming_active = {'value': False}
+    streaming_model = {'name': None}
+    streaming_buffer = {'text': ''}
+
     def append(text: str):
         # GUI append
         convo.configure(state="normal")
@@ -106,6 +111,12 @@ def main():
         convo.configure(state="disabled")
         # Mirror to console immediately
         print(text)
+
+    def append_no_newline(text: str):
+        convo.configure(state="normal")
+        convo.insert("end", text)
+        convo.see("end")
+        convo.configure(state="disabled")
 
     def format_history_lines(include_system=False):
         with history_lock:
@@ -155,6 +166,31 @@ def main():
 
     load_btn.configure(command=thread_pull)
 
+    def begin_stream_display(model_name: str):
+        # Start a new line with model prefix
+        streaming_active['value'] = True
+        streaming_model['name'] = model_name
+        streaming_buffer['text'] = ''
+        convo.configure(state='normal')
+        convo.insert('end', f"{model_name}: ")
+        convo.see('end')
+        convo.configure(state='disabled')
+
+    def stream_token(delta: str):
+        if not streaming_active['value']:
+            return
+        streaming_buffer['text'] += delta
+        append_no_newline(delta)
+
+    def end_stream_display():
+        if not streaming_active['value']:
+            return
+        convo.configure(state='normal')
+        convo.insert('end', '\n')
+        convo.see('end')
+        convo.configure(state='disabled')
+        streaming_active['value'] = False
+
     def do_inference(user_msg: str, model_name: str):
         # Ensure model is pulled (might take time)
         pull_model_if_needed(model_name)
@@ -162,6 +198,7 @@ def main():
             with history_lock:
                 temp_history = messages + [{'role': 'user', 'content': user_msg}]
             print(f"--- Streaming response from {model_name} ---")
+            root.after(0, lambda: begin_stream_display(model_name))
             full_chunks = []
             # Stream tokens/thought process
             stream = chat(model=model_name, messages=temp_history, stream=True)
@@ -170,22 +207,22 @@ def main():
                 delta = part.get('message', {}).get('content', '')
                 if delta:
                     full_chunks.append(delta)
-                    # Print without newline to simulate continuous thinking
-                    print(f"{delta}", end='', flush=True)
+                    # Schedule GUI token append
+                    root.after(0, lambda d=delta: stream_token(d))
+                    # Also print to console without newline
+                    print(delta, end='', flush=True)  # noqa: F821 (d defined by lambda binding) - safe
             print("\n--- End of streamed response ---")
-            resp = ''.join(full_chunks).strip()
-            if not resp:
-                resp = "[No content returned]"
+            resp = ''.join(full_chunks).strip() or "[No content returned]"
         except Exception as e:
             resp = f"[Error querying model '{model_name}': {e}]"
         # Back to main thread to update UI
         root.after(0, lambda: finalize_response(user_msg, resp, model_name))
 
     def finalize_response(user_msg: str, resp: str, model_name: str):
+        end_stream_display()
         with history_lock:
             messages.append({'role': 'user', 'content': user_msg})
             messages.append({'role': 'assistant', 'content': resp})
-        append(f"{model_name}: {resp}")
         # Dump updated history to console automatically
         print_history(include_system=False)
         send_btn.configure(state="normal")
