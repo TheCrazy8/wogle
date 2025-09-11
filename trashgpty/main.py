@@ -1,19 +1,15 @@
 import ollama
+from ollama import chat
+from ollama import ChatResponse
 
-ollama.pull('llama2')
-name = "__main__"
-def main():
-    msg = input("Enter your message: ")
-    # Send a chat message to a specified model
-    response = ollama.chat(model='llama2', messages=[
-        {
-            'role': 'user',
-            'content': msg,
-        },
-    ])
+ollama.pull('gemma3')
 
-    # Print the model's response
-    print(response['message']['content'])
-
-if __name__ == "__main__":
-    main()
+response: ChatResponse = chat(model='gemma3', messages=[
+  {
+    'role': 'user',
+    'content': 'Why is the sky blue?',
+  },
+])
+print(response['message']['content'])
+# or access fields directly from the response object
+print(response.message.content)
