@@ -17,73 +17,54 @@ try:
 except Exception:
     _PIL_AVAILABLE = False
 
-# HTTP dependency (still used for /web)
+# HTTP dependency (used for /web and Automatic1111)
 try:
     import requests
     _REQUESTS_AVAILABLE = True
 except Exception:
     _REQUESTS_AVAILABLE = False
 
-# DeepFloyd IF (diffusers) dependency
-try:
-    import torch
-    from diffusers import IFPipeline  # Stage 1 only for now
-    _IF_AVAILABLE = True
-except Exception:
-    _IF_AVAILABLE = False
-
 # Fixed text model (Ollama)
 TEXT_MODEL = 'gemma3'
 
 ###############################################
-# DeepFloyd IF configuration
+# Image Backend: Automatic1111 WebUI
 ###############################################
-# Model repo: https://huggingface.co/DeepFloyd/IF-I-XL-v1.0
-# This model is large and requires significant GPU VRAM (recommended >= 16GB for fp16).
-# We load only Stage I for a faster first integration. Add super-resolution stages later if desired.
-IF_MODEL_ID = os.environ.get('IF_MODEL_ID', 'DeepFloyd/IF-I-XL-v1.0')
-IF_PIPELINE = {'pipe': None, 'loading': False, 'error': None}
-IF_DEVICE = 'cuda' if 'torch' in globals() and hasattr(torch, 'cuda') and torch.cuda.is_available() else 'cpu'
-IF_DTYPE = torch.float16 if IF_DEVICE == 'cuda' else torch.float32
+# Reverting to Automatic1111 as requested. Ensure the WebUI is running locally.
+IMG_BACKEND = 'auto1111'
+SD_API_URL = os.environ.get('SD_API_URL', 'http://127.0.0.1:7860')
+SD_TXT2IMG = f'{SD_API_URL}/sdapi/v1/txt2img'
+SD_PROGRESS = f'{SD_API_URL}/sdapi/v1/progress'
+SD_STATUS = {'online': False, 'last_error': None}
 
 # Keep track of which models we've already pulled in this session (for Ollama text only)
 loaded_models = set()
 _image_refs = []  # Prevent GC of PhotoImages
 
-def load_if_pipeline_async(callback=None):
-    """Load DeepFloyd IF pipeline in a background thread."""
-    if not _IF_AVAILABLE:
-        IF_PIPELINE['error'] = 'diffusers/torch not installed'
-        if callback:
-            callback(False, IF_PIPELINE['error'])
-        return
-    if IF_PIPELINE['pipe'] is not None or IF_PIPELINE['loading']:
-        if callback:
-            callback(True, None)
-        return
-    IF_PIPELINE['loading'] = True
-    def worker():
-        try:
-            pipe = IFPipeline.from_pretrained(IF_MODEL_ID, variant="fp16" if IF_DTYPE==torch.float16 else None, torch_dtype=IF_DTYPE)
-            # Move to device
-            pipe.to(IF_DEVICE)
-            IF_PIPELINE['pipe'] = pipe
-            IF_PIPELINE['error'] = None
-            ok = True
-        except Exception as e:
-            IF_PIPELINE['error'] = str(e)
-            ok = False
-        finally:
-            IF_PIPELINE['loading'] = False
-        if callback:
-            callback(ok, IF_PIPELINE['error'])
-    threading.Thread(target=worker, daemon=True).start()
+def check_sd(timeout=4):
+    if not _REQUESTS_AVAILABLE:
+        SD_STATUS['online'] = False
+        SD_STATUS['last_error'] = 'requests not installed'
+        return False
+    try:
+        r = requests.get(SD_PROGRESS, timeout=timeout)
+        if r.status_code == 200:
+            SD_STATUS['online'] = True
+            SD_STATUS['last_error'] = None
+            return True
+        SD_STATUS['online'] = False
+        SD_STATUS['last_error'] = f'HTTP {r.status_code}'
+        return False
+    except Exception as e:
+        SD_STATUS['online'] = False
+        SD_STATUS['last_error'] = str(e)
+        return False
 
 
 def main():
     """Tkinter chat UI with fixed text model (gemma3), external Stable Diffusion (/img), /web fetch, and SD autostart."""
     root = tk.Tk()
-    root.title("AI Chat (gemma3 + DeepFloyd IF + /web)")
+    root.title("AI Chat (gemma3 + A1111 + /web)")
 
     history_lock = threading.Lock()
     messages = [{'role': 'system', 'content': "You are a helpful AI assistant. You may be given fetched web excerpts labeled 'WEB EXCERPT' to ground answers."}]
@@ -94,7 +75,7 @@ def main():
     root.columnconfigure(0, weight=1)
 
     ttk.Label(top_frame, text=f"Text model: {TEXT_MODEL}").grid(row=0, column=0, sticky='w')
-    ttk.Label(top_frame, text=f"Image: DeepFloyd IF").grid(row=0, column=1, padx=15, sticky='w')
+    ttk.Label(top_frame, text=f"Image: Automatic1111 WebUI").grid(row=0, column=1, padx=15, sticky='w')
 
     pull_status_var = tk.StringVar(value="Initializing…")
     ttk.Label(top_frame, textvariable=pull_status_var, foreground='#888').grid(row=0, column=2, padx=10, sticky='w')
@@ -194,10 +175,14 @@ def main():
             pull_status_var.set(f'Pull failed {model_name}')
             append(f"[Error pulling {model_name}: {e}]")
 
-    # --- Initial startup: pull text model only ---
+    # --- Initial startup: pull text model + check A1111 ---
     def initial_startup():
         pull_model_if_needed(TEXT_MODEL)
-        pull_status_var.set('Text model ready / IF idle')
+        online = check_sd()
+        if online:
+            pull_status_var.set('Text ready / A1111 online')
+        else:
+            pull_status_var.set(f'Text ready / A1111 offline ({SD_STATUS["last_error"]})')
     threading.Thread(target=initial_startup, daemon=True).start()
 
     # --- Streaming helpers ---
@@ -231,45 +216,67 @@ def main():
             return prompt.strip(), negative.strip()
         return body.strip(), ''
 
-    # --- DeepFloyd IF generation ---
+    # --- Automatic1111 generation ---
     def generate_image(prompt: str, negative: str):
-        if not _IF_AVAILABLE:
-            append('[DeepFloyd IF not available: install torch, diffusers, transformers, accelerate, safetensors]')
+        if IMG_BACKEND != 'auto1111':
+            append(f'[Unsupported backend {IMG_BACKEND}]')
             return
-        if IF_PIPELINE['pipe'] is None:
-            if IF_PIPELINE['loading']:
-                append('[IF model still loading… please wait]')
-                return
-            append('[Loading DeepFloyd IF model (first load can take minutes & large disk download)…]')
-            def after_load(ok, err):
-                if ok:
-                    append('[IF model loaded]')
-                    threading.Thread(target=lambda: generate_image(prompt, negative), daemon=True).start()
-                else:
-                    append(f'[IF load error: {err}]')
-            load_if_pipeline_async(callback=lambda ok, err: root.after(0, lambda: after_load(ok, err)))
+        if not _REQUESTS_AVAILABLE:
+            append('[requests not installed: cannot reach A1111 API]')
             return
-        pipe = IF_PIPELINE['pipe']
+        if not SD_STATUS['online']:
+            check_sd()
+        if not SD_STATUS['online']:
+            append(f'[A1111 offline: {SD_STATUS["last_error"]}]')
+            return
+        payload = {
+            'prompt': prompt,
+            'negative_prompt': negative,
+            'steps': 30,
+            'width': 512,
+            'height': 512,
+            'sampler_name': 'Euler a'
+        }
         try:
-            generator = torch.manual_seed(int(time.time()) % 2**32)
-            out = pipe(prompt=prompt, negative_prompt=negative or None, guidance_scale=7.0, generator=generator, num_inference_steps=50)
-            images = out.images
+            resp = requests.post(SD_TXT2IMG, json=payload, timeout=180)
         except Exception as e:
-            append(f'[IF inference error: {e}]')
+            SD_STATUS['online'] = False
+            SD_STATUS['last_error'] = str(e)
+            append(f'[A1111 request error: {e}]')
             return
+        if resp.status_code != 200:
+            append(f'[A1111 HTTP {resp.status_code}: {resp.text[:120]}]')
+            return
+        try:
+            data = resp.json()
+        except Exception as e:
+            append(f'[A1111 JSON error: {e}]')
+            return
+        images = data.get('images') or []
         if not images:
-            append('[IF returned no images]')
+            append('[A1111 returned no images]')
             return
         os.makedirs('generated_images', exist_ok=True)
         ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        for idx, img in enumerate(images):
-            filename = f'generated_images/{ts}_if_{idx}.png'
+        for idx, b64img in enumerate(images):
             try:
-                img.save(filename)
+                binary = base64.b64decode(b64img)
             except Exception as e:
-                append(f'[Save failed {filename}: {e}]')
+                append(f'[Decode failed: {e}]')
+                continue
+            filename = f'generated_images/{ts}_{idx}.png'
+            try:
+                with open(filename, 'wb') as f:
+                    f.write(binary)
+            except Exception as e:
+                append(f'[Write failed {filename}: {e}]')
                 continue
             if _PIL_AVAILABLE:
+                try:
+                    img = Image.open(io.BytesIO(binary))
+                except Exception as e:
+                    append(f'[PIL open failed: {e}]')
+                    continue
                 embed_image(img, f'Image saved: {filename}')
             else:
                 append(f'Image saved: {filename} (install Pillow to preview)')
@@ -429,14 +436,9 @@ def main():
         entry_var.set('')
         entry.focus()
 
-    # Optional: command to reload IF
-    def handle_ifreload():
-        if IF_PIPELINE['loading']:
-            append('[IF already loading]')
-            return
-        IF_PIPELINE['pipe'] = None
-        append('[Reloading IF pipeline…]')
-        load_if_pipeline_async(callback=lambda ok, err: root.after(0, lambda: append('[IF model loaded]' if ok else f'[IF load error: {err}]')))
+    def handle_sdstatus():
+        online = check_sd()
+        append('[A1111 online]' if online else f'[A1111 offline: {SD_STATUS["last_error"]}]')
 
     def send(event=None):
         user_msg = entry_var.get().strip()
@@ -450,8 +452,8 @@ def main():
         if user_msg.startswith('/web'):
             handle_web_command(user_msg)
             return
-        if user_msg.startswith('/ifreload'):
-            handle_ifreload()
+        if user_msg.startswith('/sdstatus'):
+            handle_sdstatus()
             reset_input_state()
             return
         append(f'You: {user_msg}')
@@ -473,9 +475,9 @@ def main():
     # Initial message
     if not _REQUESTS_AVAILABLE:
         append('Install requests (pip install requests) for /web & /img & SD autostart.')
-    append('Ready. Commands: /img <prompt> [|| negative], /web <url or search>, /ifreload (reload DeepFloyd IF).')
-    if not _IF_AVAILABLE:
-        append('Install dependencies for IF: pip install torch diffusers transformers accelerate safetensors')
+    append('Ready. Commands: /img <prompt> [|| negative], /web <url or search>, /sdstatus (check Automatic1111).')
+    if not _REQUESTS_AVAILABLE:
+        append('Install requests: pip install requests')
     entry.focus()
 
     if sv_ttk is not None:
