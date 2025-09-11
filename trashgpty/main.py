@@ -4,13 +4,14 @@ from ollama import ChatResponse
 import tkinter as tk
 from tkinter import ttk
 import threading
+import sv_ttk
 
 # Pull the model once at startup (will noop if already present)
 try:
     ollama.pull('gemma3')
 except Exception as e:
     print(f"Warning: could not pull model gemma3: {e}")
-    
+
 
 def main():
     """Launch a simple Tkinter chat UI for the gemma3 model."""
@@ -86,6 +87,8 @@ def main():
 
     append("Gemma Chat ready. Type a message and press Enter or Send.")
     entry.focus()
+
+    sv_ttk.set_theme("dark")
 
     root.mainloop()
 
