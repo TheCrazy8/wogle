@@ -24,20 +24,48 @@ except Exception:
     _REQUESTS_AVAILABLE = False
 
 # Fixed text model (Ollama)
-TEXT_MODEL = 'gpt-oss:120b'
+TEXT_MODEL = 'gemma3'
 
 # Stable Diffusion WebUI API endpoint (adjust if different)
 SD_API_URL = 'http://127.0.0.1:7860'
 SD_TXT2IMG_ENDPOINT = f'{SD_API_URL}/sdapi/v1/txt2img'
+SD_PROGRESS_ENDPOINT = f'{SD_API_URL}/sdapi/v1/progress'
+
+# SD runtime feature flags
+SD_AVAILABLE = {'value': False}  # mutable container so inner closures can modify
+SD_LAST_ERROR = {'value': None}
 
 # Keep track of which models we've already pulled in this session (for Ollama text only)
 loaded_models = set()
 _image_refs = []  # Prevent GC of PhotoImages
 
+# ------------------------------------------------------------
+# Utility: check Stable Diffusion availability
+# ------------------------------------------------------------
+def check_sd_available(timeout=4):
+    if not _REQUESTS_AVAILABLE:
+        SD_AVAILABLE['value'] = False
+        SD_LAST_ERROR['value'] = 'requests not installed'
+        return False, SD_LAST_ERROR['value']
+    try:
+        r = requests.get(SD_PROGRESS_ENDPOINT, timeout=timeout)
+        if r.status_code == 200:
+            SD_AVAILABLE['value'] = True
+            SD_LAST_ERROR['value'] = None
+            return True, None
+        SD_AVAILABLE['value'] = False
+        SD_LAST_ERROR['value'] = f'HTTP {r.status_code}'
+        return False, SD_LAST_ERROR['value']
+    except Exception as e:
+        SD_AVAILABLE['value'] = False
+        SD_LAST_ERROR['value'] = str(e)
+        return False, SD_LAST_ERROR['value']
+
+
 def main():
-    """Tkinter chat UI with fixed text model (gemma3) + external Stable Diffusion for /img and web fetch via /web."""
+    """Tkinter chat UI with fixed text model (gemma3) + external Stable Diffusion for /img and /web."""
     root = tk.Tk()
-    root.title("AI Chat (GPToss + SD + /web)")
+    root.title("AI Chat (gemma3 + SD + /web)")
 
     history_lock = threading.Lock()
     messages = [{'role': 'system', 'content': "You are a helpful AI assistant. You may be given fetched web excerpts labeled 'WEB EXCERPT' to ground answers."}]
@@ -84,7 +112,7 @@ def main():
     streaming_active = {'value': False}
     streaming_buffer = {'text': ''}
 
-    # --- Utility ---
+    # --- Utility append functions (unchanged) ---
     def append(text: str):
         convo.configure(state='normal')
         convo.insert('end', text + '\n')
@@ -137,7 +165,7 @@ def main():
 
     clear_btn.configure(command=clear_conversation)
 
-    # --- Ollama model pull (text only) ---
+    # --- Model pull (text only) ---
     def pull_model_if_needed(model_name: str):
         if model_name in loaded_models:
             return
@@ -150,11 +178,16 @@ def main():
             pull_status_var.set(f'Pull failed {model_name}')
             append(f"[Error pulling {model_name}: {e}]")
 
-    def initial_pull():
+    def initial_startup():
         pull_model_if_needed(TEXT_MODEL)
-        pull_status_var.set('Text ready')
+        ok, err = check_sd_available()
+        if ok:
+            pull_status_var.set('Text ready / SD online')
+        else:
+            pull_status_var.set(f'Text ready / SD offline ({err})')
+            append(f'[Stable Diffusion offline: {err}] Start Automatic1111 WebUI on {SD_API_URL} to enable /img.')
 
-    threading.Thread(target=initial_pull, daemon=True).start()
+    threading.Thread(target=initial_startup, daemon=True).start()
 
     # --- Streaming helpers ---
     def begin_stream():
@@ -179,7 +212,7 @@ def main():
         convo.configure(state='disabled')
         streaming_active['value'] = False
 
-    # --- /img parsing (unchanged) ---
+    # --- /img parsing ---
     def parse_image_command(raw: str):
         body = raw[len('/img'):].strip()
         if '||' in body:
@@ -187,10 +220,10 @@ def main():
             return prompt.strip(), negative.strip()
         return body.strip(), ''
 
-    # --- Stable Diffusion generation (Automatic1111) ---
+    # --- Stable Diffusion generation (Automatic1111) with availability guard ---
     def generate_image(prompt: str, negative: str):
-        if not _REQUESTS_AVAILABLE:
-            root.after(0, lambda: append('[Install requests: pip install requests]'))
+        if not SD_AVAILABLE['value']:
+            append(f'[SD offline: {SD_LAST_ERROR["value"] or "not reachable"}] Use /sdstatus after starting the WebUI.')
             return
         payload = {
             'prompt': prompt,
@@ -203,19 +236,21 @@ def main():
         try:
             resp = requests.post(SD_TXT2IMG_ENDPOINT, json=payload, timeout=120)
         except Exception as e:
-            root.after(0, lambda e=e: append(f'[SD request error: {e}]'))
+            append(f'[SD request error: {e}]')
+            SD_AVAILABLE['value'] = False
+            SD_LAST_ERROR['value'] = str(e)
             return
         if resp.status_code != 200:
-            root.after(0, lambda: append(f'[SD HTTP {resp.status_code}: {resp.text[:100]}]'))
+            append(f'[SD HTTP {resp.status_code}: {resp.text[:100]}]')
             return
         try:
             data = resp.json()
         except Exception as e:
-            root.after(0, lambda e=e: append(f'[SD JSON parse error: {e}]'))
+            append(f'[SD JSON parse error: {e}]')
             return
         images = data.get('images') or []
         if not images:
-            root.after(0, lambda: append('[SD returned no images]'))
+            append('[SD returned no images]')
             return
         os.makedirs('generated_images', exist_ok=True)
         ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -223,30 +258,29 @@ def main():
             try:
                 binary = base64.b64decode(b64img)
             except Exception as e:
-                root.after(0, lambda e=e: append(f'[Decode failed: {e}]'))
+                append(f'[Decode failed: {e}]')
                 continue
             filename = f'generated_images/{ts}_{idx}.png'
             try:
                 with open(filename, 'wb') as f:
                     f.write(binary)
             except Exception as e:
-                root.after(0, lambda e=e, fn=filename: append(f'[Write failed {fn}: {e}]'))
+                append(f'[Write failed {filename}: {e}]')
                 continue
             if _PIL_AVAILABLE:
                 try:
                     img = Image.open(io.BytesIO(binary))
                 except Exception as e:
-                    root.after(0, lambda e=e: append(f'[PIL open failed: {e}]'))
+                    append(f'[PIL open failed: {e}]')
                     continue
-                root.after(0, lambda img=img, fn=filename: embed_image(img, f'Image saved: {fn}'))
+                embed_image(img, f'Image saved: {filename}')
             else:
-                root.after(0, lambda fn=filename: append(f'Image saved: {fn} (install Pillow to preview)'))
+                append(f'Image saved: {filename} (install Pillow to preview)')
 
-    # --- /web fetch ---
+    # --- /web, fetch helpers (unchanged from previous revision) ---
     def sanitize_url_or_query(arg: str):
         if re.match(r'^https?://', arg, re.I):
             return arg, None
-        # treat as query -> use DuckDuckGo lite html (no API key)
         return None, arg
 
     def duckduckgo_search(query: str, max_results=3):
@@ -256,9 +290,7 @@ def main():
             r = requests.get('https://duckduckgo.com/html/', params={'q': query}, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
             if r.status_code != 200:
                 return []
-            # crude extraction of links
             links = re.findall(r'<a rel="nofollow" class="result__a" href="(.*?)"', r.text)
-            # decode & filter
             cleaned = []
             for l in links:
                 if l.startswith('http') and 'duckduckgo.com' not in l:
@@ -279,7 +311,6 @@ def main():
             text = resp.text
         except Exception as e:
             return f'[Fetch error: {e}]', ''
-        # strip tags
         stripped = re.sub(r'<script.*?</script>|<style.*?</style>', '', text, flags=re.S|re.I)
         stripped = re.sub(r'<[^>]+>', ' ', stripped)
         stripped = re.sub(r'&nbsp;|&amp;|&lt;|&gt;', ' ', stripped)
@@ -288,16 +319,14 @@ def main():
         return None, snippet
 
     def summarize_snippet(snippet: str):
-        # Use model to summarize snippet into shorter context chunk(s)
         if not snippet:
             return '[Empty snippet]'
-        # split into ~1k char chunks
         chunks = []
         size = 1000
         for i in range(0, len(snippet), size):
             chunks.append(snippet[i:i+size])
         summaries = []
-        for idx, ch in enumerate(chunks[:4]):  # limit
+        for idx, ch in enumerate(chunks[:4]):
             try:
                 resp = chat(model=TEXT_MODEL, messages=[
                     {'role': 'system', 'content': 'Summarize the provided web text accurately and concisely.'},
@@ -401,6 +430,13 @@ def main():
         entry_var.set('')
         entry.focus()
 
+    def handle_sdstatus():
+        append('[Checking Stable Diffusion status…]')
+        def worker():
+            ok, err = check_sd_available()
+            root.after(0, lambda: append('[SD online]' if ok else f'[SD offline: {err}]'))
+        threading.Thread(target=worker, daemon=True).start()
+
     def send(event=None):
         user_msg = entry_var.get().strip()
         if not user_msg:
@@ -412,6 +448,13 @@ def main():
             return
         if user_msg.startswith('/web'):
             handle_web_command(user_msg)
+            return
+        if user_msg.startswith('/sdstatus'):
+            handle_sdstatus()
+            send_btn.configure(state='normal')
+            entry.configure(state='normal')
+            entry_var.set('')
+            entry.focus()
             return
         append(f'You: {user_msg}')
         threading.Thread(target=do_inference, args=(user_msg,), daemon=True).start()
@@ -425,8 +468,8 @@ def main():
 
     # Initial message
     if not _REQUESTS_AVAILABLE:
-        append('Install requests (pip install requests) for /web & image generation.')
-    append('Ready. Commands: /img <prompt> [|| negative], /web <url or search terms>. Web excerpts are summarized and added to context.')
+        append('Install requests (pip install requests) for /web & /img commands.')
+    append('Ready. Commands: /img <prompt> [|| negative], /web <url or search terms>, /sdstatus to re-check Stable Diffusion availability.')
     entry.focus()
 
     if sv_ttk is not None:
