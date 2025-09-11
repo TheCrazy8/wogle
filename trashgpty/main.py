@@ -161,8 +161,21 @@ def main():
         try:
             with history_lock:
                 temp_history = messages + [{'role': 'user', 'content': user_msg}]
-            response: ChatResponse = chat(model=model_name, messages=temp_history)
-            resp = response['message']['content']
+            print(f"--- Streaming response from {model_name} ---")
+            full_chunks = []
+            # Stream tokens/thought process
+            stream = chat(model=model_name, messages=temp_history, stream=True)
+            for part in stream:
+                # Each part may contain an incremental content piece
+                delta = part.get('message', {}).get('content', '')
+                if delta:
+                    full_chunks.append(delta)
+                    # Print without newline to simulate continuous thinking
+                    print(f"{delta}", end='', flush=True)
+            print("\n--- End of streamed response ---")
+            resp = ''.join(full_chunks).strip()
+            if not resp:
+                resp = "[No content returned]"
         except Exception as e:
             resp = f"[Error querying model '{model_name}': {e}]"
         # Back to main thread to update UI
@@ -201,10 +214,11 @@ def main():
     entry.focus()
 
     # Apply dark theme if available
-    try:
-        sv_ttk.set_theme("dark")
-    except Exception:
-        pass
+    if sv_ttk is not None:
+        try:
+            sv_ttk.set_theme("dark")
+        except Exception:
+            pass
 
     root.mainloop()
 
