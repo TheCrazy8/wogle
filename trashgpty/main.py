@@ -9,63 +9,80 @@ try:
 except ImportError:
     sv_ttk = None  # Themeing is optional
 
-import os, io, base64, datetime, json, re
+import os, io, base64, datetime, json, re, subprocess, time, sys
 try:
     from PIL import Image, ImageTk
     _PIL_AVAILABLE = True
 except Exception:
     _PIL_AVAILABLE = False
 
-# Stable Diffusion (Automatic1111) API dependency
+# HTTP dependency (still used for /web)
 try:
     import requests
     _REQUESTS_AVAILABLE = True
 except Exception:
     _REQUESTS_AVAILABLE = False
 
+# DeepFloyd IF (diffusers) dependency
+try:
+    import torch
+    from diffusers import IFPipeline  # Stage 1 only for now
+    _IF_AVAILABLE = True
+except Exception:
+    _IF_AVAILABLE = False
+
 # Fixed text model (Ollama)
 TEXT_MODEL = 'gemma3'
 
-# Stable Diffusion WebUI API endpoint (adjust if different)
-SD_API_URL = 'http://127.0.0.1:7860'
-SD_TXT2IMG_ENDPOINT = f'{SD_API_URL}/sdapi/v1/txt2img'
-SD_PROGRESS_ENDPOINT = f'{SD_API_URL}/sdapi/v1/progress'
-
-# SD runtime feature flags
-SD_AVAILABLE = {'value': False}  # mutable container so inner closures can modify
-SD_LAST_ERROR = {'value': None}
+###############################################
+# DeepFloyd IF configuration
+###############################################
+# Model repo: https://huggingface.co/DeepFloyd/IF-I-XL-v1.0
+# This model is large and requires significant GPU VRAM (recommended >= 16GB for fp16).
+# We load only Stage I for a faster first integration. Add super-resolution stages later if desired.
+IF_MODEL_ID = os.environ.get('IF_MODEL_ID', 'DeepFloyd/IF-I-XL-v1.0')
+IF_PIPELINE = {'pipe': None, 'loading': False, 'error': None}
+IF_DEVICE = 'cuda' if 'torch' in globals() and hasattr(torch, 'cuda') and torch.cuda.is_available() else 'cpu'
+IF_DTYPE = torch.float16 if IF_DEVICE == 'cuda' else torch.float32
 
 # Keep track of which models we've already pulled in this session (for Ollama text only)
 loaded_models = set()
 _image_refs = []  # Prevent GC of PhotoImages
 
-# ------------------------------------------------------------
-# Utility: check Stable Diffusion availability
-# ------------------------------------------------------------
-def check_sd_available(timeout=4):
-    if not _REQUESTS_AVAILABLE:
-        SD_AVAILABLE['value'] = False
-        SD_LAST_ERROR['value'] = 'requests not installed'
-        return False, SD_LAST_ERROR['value']
-    try:
-        r = requests.get(SD_PROGRESS_ENDPOINT, timeout=timeout)
-        if r.status_code == 200:
-            SD_AVAILABLE['value'] = True
-            SD_LAST_ERROR['value'] = None
-            return True, None
-        SD_AVAILABLE['value'] = False
-        SD_LAST_ERROR['value'] = f'HTTP {r.status_code}'
-        return False, SD_LAST_ERROR['value']
-    except Exception as e:
-        SD_AVAILABLE['value'] = False
-        SD_LAST_ERROR['value'] = str(e)
-        return False, SD_LAST_ERROR['value']
+def load_if_pipeline_async(callback=None):
+    """Load DeepFloyd IF pipeline in a background thread."""
+    if not _IF_AVAILABLE:
+        IF_PIPELINE['error'] = 'diffusers/torch not installed'
+        if callback:
+            callback(False, IF_PIPELINE['error'])
+        return
+    if IF_PIPELINE['pipe'] is not None or IF_PIPELINE['loading']:
+        if callback:
+            callback(True, None)
+        return
+    IF_PIPELINE['loading'] = True
+    def worker():
+        try:
+            pipe = IFPipeline.from_pretrained(IF_MODEL_ID, variant="fp16" if IF_DTYPE==torch.float16 else None, torch_dtype=IF_DTYPE)
+            # Move to device
+            pipe.to(IF_DEVICE)
+            IF_PIPELINE['pipe'] = pipe
+            IF_PIPELINE['error'] = None
+            ok = True
+        except Exception as e:
+            IF_PIPELINE['error'] = str(e)
+            ok = False
+        finally:
+            IF_PIPELINE['loading'] = False
+        if callback:
+            callback(ok, IF_PIPELINE['error'])
+    threading.Thread(target=worker, daemon=True).start()
 
 
 def main():
-    """Tkinter chat UI with fixed text model (gemma3) + external Stable Diffusion for /img and /web."""
+    """Tkinter chat UI with fixed text model (gemma3), external Stable Diffusion (/img), /web fetch, and SD autostart."""
     root = tk.Tk()
-    root.title("AI Chat (gemma3 + SD + /web)")
+    root.title("AI Chat (gemma3 + DeepFloyd IF + /web)")
 
     history_lock = threading.Lock()
     messages = [{'role': 'system', 'content': "You are a helpful AI assistant. You may be given fetched web excerpts labeled 'WEB EXCERPT' to ground answers."}]
@@ -76,7 +93,7 @@ def main():
     root.columnconfigure(0, weight=1)
 
     ttk.Label(top_frame, text=f"Text model: {TEXT_MODEL}").grid(row=0, column=0, sticky='w')
-    ttk.Label(top_frame, text=f"Image: SD WebUI API").grid(row=0, column=1, padx=15, sticky='w')
+    ttk.Label(top_frame, text=f"Image: DeepFloyd IF").grid(row=0, column=1, padx=15, sticky='w')
 
     pull_status_var = tk.StringVar(value="Initializing…")
     ttk.Label(top_frame, textvariable=pull_status_var, foreground='#888').grid(row=0, column=2, padx=10, sticky='w')
@@ -85,7 +102,6 @@ def main():
     text_frame = ttk.Frame(root, padding=10)
     text_frame.grid(row=1, column=0, sticky='nsew')
     root.rowconfigure(1, weight=1)
-
     convo = tk.Text(text_frame, wrap='word', height=20, width=80, state='disabled')
     convo.grid(row=0, column=0, columnspan=6, sticky='nsew')
     scrollbar = ttk.Scrollbar(text_frame, orient='vertical', command=convo.yview)
@@ -94,7 +110,6 @@ def main():
     text_frame.rowconfigure(0, weight=1)
     text_frame.columnconfigure(0, weight=1)
 
-    # Input + buttons
     entry_var = tk.StringVar()
     entry = ttk.Entry(text_frame, textvariable=entry_var, width=60)
     entry.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(8,0))
@@ -112,7 +127,7 @@ def main():
     streaming_active = {'value': False}
     streaming_buffer = {'text': ''}
 
-    # --- Utility append functions (unchanged) ---
+    # --- Utility append functions ---
     def append(text: str):
         convo.configure(state='normal')
         convo.insert('end', text + '\n')
@@ -178,15 +193,10 @@ def main():
             pull_status_var.set(f'Pull failed {model_name}')
             append(f"[Error pulling {model_name}: {e}]")
 
+    # --- Initial startup: pull text model only ---
     def initial_startup():
         pull_model_if_needed(TEXT_MODEL)
-        ok, err = check_sd_available()
-        if ok:
-            pull_status_var.set('Text ready / SD online')
-        else:
-            pull_status_var.set(f'Text ready / SD offline ({err})')
-            append(f'[Stable Diffusion offline: {err}] Start Automatic1111 WebUI on {SD_API_URL} to enable /img.')
-
+        pull_status_var.set('Text model ready / IF idle')
     threading.Thread(target=initial_startup, daemon=True).start()
 
     # --- Streaming helpers ---
@@ -220,64 +230,50 @@ def main():
             return prompt.strip(), negative.strip()
         return body.strip(), ''
 
-    # --- Stable Diffusion generation (Automatic1111) with availability guard ---
+    # --- DeepFloyd IF generation ---
     def generate_image(prompt: str, negative: str):
-        if not SD_AVAILABLE['value']:
-            append(f'[SD offline: {SD_LAST_ERROR["value"] or "not reachable"}] Use /sdstatus after starting the WebUI.')
+        if not _IF_AVAILABLE:
+            append('[DeepFloyd IF not available: install torch, diffusers, transformers, accelerate, safetensors]')
             return
-        payload = {
-            'prompt': prompt,
-            'negative_prompt': negative,
-            'steps': 25,
-            'width': 512,
-            'height': 512,
-            'sampler_name': 'Euler a'
-        }
+        if IF_PIPELINE['pipe'] is None:
+            if IF_PIPELINE['loading']:
+                append('[IF model still loading… please wait]')
+                return
+            append('[Loading DeepFloyd IF model (first load can take minutes & large disk download)…]')
+            def after_load(ok, err):
+                if ok:
+                    append('[IF model loaded]')
+                    threading.Thread(target=lambda: generate_image(prompt, negative), daemon=True).start()
+                else:
+                    append(f'[IF load error: {err}]')
+            load_if_pipeline_async(callback=lambda ok, err: root.after(0, lambda: after_load(ok, err)))
+            return
+        pipe = IF_PIPELINE['pipe']
         try:
-            resp = requests.post(SD_TXT2IMG_ENDPOINT, json=payload, timeout=120)
+            generator = torch.manual_seed(int(time.time()) % 2**32)
+            out = pipe(prompt=prompt, negative_prompt=negative or None, guidance_scale=7.0, generator=generator, num_inference_steps=50)
+            images = out.images
         except Exception as e:
-            append(f'[SD request error: {e}]')
-            SD_AVAILABLE['value'] = False
-            SD_LAST_ERROR['value'] = str(e)
+            append(f'[IF inference error: {e}]')
             return
-        if resp.status_code != 200:
-            append(f'[SD HTTP {resp.status_code}: {resp.text[:100]}]')
-            return
-        try:
-            data = resp.json()
-        except Exception as e:
-            append(f'[SD JSON parse error: {e}]')
-            return
-        images = data.get('images') or []
         if not images:
-            append('[SD returned no images]')
+            append('[IF returned no images]')
             return
         os.makedirs('generated_images', exist_ok=True)
         ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        for idx, b64img in enumerate(images):
+        for idx, img in enumerate(images):
+            filename = f'generated_images/{ts}_if_{idx}.png'
             try:
-                binary = base64.b64decode(b64img)
+                img.save(filename)
             except Exception as e:
-                append(f'[Decode failed: {e}]')
-                continue
-            filename = f'generated_images/{ts}_{idx}.png'
-            try:
-                with open(filename, 'wb') as f:
-                    f.write(binary)
-            except Exception as e:
-                append(f'[Write failed {filename}: {e}]')
+                append(f'[Save failed {filename}: {e}]')
                 continue
             if _PIL_AVAILABLE:
-                try:
-                    img = Image.open(io.BytesIO(binary))
-                except Exception as e:
-                    append(f'[PIL open failed: {e}]')
-                    continue
                 embed_image(img, f'Image saved: {filename}')
             else:
                 append(f'Image saved: {filename} (install Pillow to preview)')
 
-    # --- /web, fetch helpers (unchanged from previous revision) ---
+    # --- /web helpers (unchanged logic) ---
     def sanitize_url_or_query(arg: str):
         if re.match(r'^https?://', arg, re.I):
             return arg, None
@@ -290,7 +286,7 @@ def main():
             r = requests.get('https://duckduckgo.com/html/', params={'q': query}, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
             if r.status_code != 200:
                 return []
-            links = re.findall(r'<a rel="nofollow" class="result__a" href="(.*?)"', r.text)
+            links = re.findall(r'<a rel=\"nofollow\" class=\"result__a\" href=\"(.*?)\"', r.text)
             cleaned = []
             for l in links:
                 if l.startswith('http') and 'duckduckgo.com' not in l:
@@ -341,7 +337,8 @@ def main():
         arg = raw[len('/web'):].strip()
         if not arg:
             append('[Usage] /web <url or search terms>')
-            return finalize_web(None)
+            finalize_web(None)
+            return
         url, query = sanitize_url_or_query(arg)
         urls = []
         if url:
@@ -351,7 +348,8 @@ def main():
             urls = duckduckgo_search(query, max_results=2)
             if not urls:
                 append('[No search results]')
-                return finalize_web(None)
+                finalize_web(None)
+                return
         append(f'[Fetching {len(urls)} source(s)]')
         def worker():
             combined_contexts = []
@@ -430,12 +428,14 @@ def main():
         entry_var.set('')
         entry.focus()
 
-    def handle_sdstatus():
-        append('[Checking Stable Diffusion status…]')
-        def worker():
-            ok, err = check_sd_available()
-            root.after(0, lambda: append('[SD online]' if ok else f'[SD offline: {err}]'))
-        threading.Thread(target=worker, daemon=True).start()
+    # Optional: command to reload IF
+    def handle_ifreload():
+        if IF_PIPELINE['loading']:
+            append('[IF already loading]')
+            return
+        IF_PIPELINE['pipe'] = None
+        append('[Reloading IF pipeline…]')
+        load_if_pipeline_async(callback=lambda ok, err: root.after(0, lambda: append('[IF model loaded]' if ok else f'[IF load error: {err}]')))
 
     def send(event=None):
         user_msg = entry_var.get().strip()
@@ -449,15 +449,18 @@ def main():
         if user_msg.startswith('/web'):
             handle_web_command(user_msg)
             return
-        if user_msg.startswith('/sdstatus'):
-            handle_sdstatus()
-            send_btn.configure(state='normal')
-            entry.configure(state='normal')
-            entry_var.set('')
-            entry.focus()
+        if user_msg.startswith('/ifreload'):
+            handle_ifreload()
+            reset_input_state()
             return
         append(f'You: {user_msg}')
         threading.Thread(target=do_inference, args=(user_msg,), daemon=True).start()
+
+    def reset_input_state():
+        send_btn.configure(state='normal')
+        entry.configure(state='normal')
+        entry_var.set('')
+        entry.focus()
 
     def dump_history_action():
         print_history(include_system=True)
@@ -468,8 +471,10 @@ def main():
 
     # Initial message
     if not _REQUESTS_AVAILABLE:
-        append('Install requests (pip install requests) for /web & /img commands.')
-    append('Ready. Commands: /img <prompt> [|| negative], /web <url or search terms>, /sdstatus to re-check Stable Diffusion availability.')
+        append('Install requests (pip install requests) for /web & /img & SD autostart.')
+    append('Ready. Commands: /img <prompt> [|| negative], /web <url or search>, /ifreload (reload DeepFloyd IF).')
+    if not _IF_AVAILABLE:
+        append('Install dependencies for IF: pip install torch diffusers transformers accelerate safetensors')
     entry.focus()
 
     if sv_ttk is not None:
